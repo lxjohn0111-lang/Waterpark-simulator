@@ -12,52 +12,97 @@ export class Input {
     this.touch = { move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 }, buttons: new Set(), pressed: new Set() };
     this.enabled = true;
 
+    // When the page can't capture the mouse (e.g. inside a sandboxed frame),
+    // we fall back to a "virtual lock": the cursor stays visible and holding
+    // the right mouse button while dragging turns the camera.
+    this.fallback = false;
+    this.everLocked = false;
+    this.rDrag = null;
+
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       const k = e.code;
       if (['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyB'].includes(k) || (k === 'KeyF' && e.ctrlKey)) e.preventDefault();
+      if (k === 'Escape' && this.fallback && this.locked) { this._setVirtual(false); return; }
       if (!this.keys.has(k)) this.pressed.add(k);
       this.keys.add(k);
     });
     window.addEventListener('keyup', (e) => { this.keys.delete(e.code); });
-    window.addEventListener('blur', () => { this.keys.clear(); this.mouse.left = this.mouse.right = false; });
+    window.addEventListener('blur', () => { this.keys.clear(); this.mouse.left = this.mouse.right = false; this.rDrag = null; });
 
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
+      let dx = e.movementX || 0, dy = e.movementY || 0;
+      if (this.fallback) {
+        if (!(e.buttons & 2)) return;
+        if (this.rDrag) this.rDrag.dist += Math.abs(dx) + Math.abs(dy);
+        dx *= 1.6; dy *= 1.6;
+      }
       // clamp huge spikes some browsers emit on lock
-      const dx = Math.max(-250, Math.min(250, e.movementX || 0));
-      const dy = Math.max(-250, Math.min(250, e.movementY || 0));
-      this.mouse.dx += dx; this.mouse.dy += dy;
+      this.mouse.dx += Math.max(-250, Math.min(250, dx));
+      this.mouse.dy += Math.max(-250, Math.min(250, dy));
     });
     canvas.addEventListener('mousedown', (e) => {
       if (!this.locked) return;
       if (e.button === 0) { this.mouse.left = true; this.mouse.leftPressed = true; }
-      if (e.button === 2) { this.mouse.right = true; this.mouse.rightPressed = true; }
+      if (e.button === 2) {
+        this.mouse.right = true;
+        if (this.fallback) this.rDrag = { dist: 0 }; else this.mouse.rightPressed = true;
+      }
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.left = false;
-      if (e.button === 2) this.mouse.right = false;
+      if (e.button === 2) {
+        this.mouse.right = false;
+        // in fallback mode a right *click* (no drag) still cancels/exits like normal
+        if (this.fallback && this.locked && this.rDrag && this.rDrag.dist < 6) this.mouse.rightPressed = true;
+        this.rDrag = null;
+      }
     });
     window.addEventListener('wheel', (e) => { if (this.locked) this.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.addEventListener('pointerlockchange', () => {
+      if (this.fallback) return;
       this.locked = document.pointerLockElement === canvas;
+      if (this.locked) this.everLocked = true;
       this.mouse.left = this.mouse.right = false;
       this.mouse.dx = this.mouse.dy = 0;
       this.onLockChange && this.onLockChange(this.locked);
     });
-    document.addEventListener('pointerlockerror', () => { this.onLockError && this.onLockError(); });
+    document.addEventListener('pointerlockerror', () => this._lockFailed());
   }
 
   lock() {
     if (G.isTouch) return;
+    if (this.fallback) { this._setVirtual(true); return; }
     try {
-      const p = this.canvas.requestPointerLock({ unadjustedMovement: false });
-      if (p && p.catch) p.catch(() => { try { this.canvas.requestPointerLock(); } catch (e) {} });
-    } catch (e) { try { this.canvas.requestPointerLock(); } catch (e2) {} }
+      const p = this.canvas.requestPointerLock();
+      if (p && p.catch) p.catch(() => this._lockFailed());
+    } catch (e) { this._lockFailed(); }
   }
-  unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
+  unlock() {
+    if (this.fallback) { this._setVirtual(false); return; }
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+  _lockFailed() {
+    if (this.locked) return;
+    if (!this.everLocked) {
+      // mouse capture isn't allowed here at all: switch to drag-to-look
+      this.fallback = true;
+      this.canvas.style.cursor = 'crosshair';
+      this._setVirtual(true);
+      this.onFallback && this.onFallback();
+    } else this.onLockError && this.onLockError();
+  }
+  _setVirtual(v) {
+    if (this.locked === v) return;
+    this.locked = v;
+    this.mouse.left = this.mouse.right = false;
+    this.mouse.dx = this.mouse.dy = 0;
+    this.rDrag = null;
+    this.onLockChange && this.onLockChange(v);
+  }
 
   down(code) { return this.keys.has(code); }
   hit(code) { return this.pressed.has(code); }

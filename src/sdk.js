@@ -17,6 +17,11 @@ class CrazySDK {
   }
 
   async init() {
+    // Builds without the SDK script tag (e.g. standalone web previews) skip straight to standalone mode.
+    if (!document.querySelector('script[src*="crazygames"]') && !(window.CrazyGames && window.CrazyGames.SDK)) {
+      console.info('[SDK] No CrazyGames SDK script on this page, running standalone.');
+      return false;
+    }
     // Wait for the async-loaded script (max ~3s), then init.
     const t0 = performance.now();
     while (!(window.CrazyGames && window.CrazyGames.SDK) && performance.now() - t0 < 3000) {

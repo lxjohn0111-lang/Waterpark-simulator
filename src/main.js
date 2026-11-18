@@ -308,6 +308,11 @@ function wireEvents() {
     }
   };
   G.input.onLockError = () => { if (!G.menus.open) $('intro-hint').classList.remove('hidden'); };
+  G.input.onFallback = () => {
+    const sub = document.querySelector('#intro-hint .ih-sub');
+    if (sub) sub.textContent = 'Hold right mouse + drag to look · WASD move · E interact · B build · Tab manage';
+    G.hud.toast('🖱️ Mouse capture is off in this window. <b>Hold the right mouse button and drag</b> to look around; aim with the centre dot.', 'gold');
+  };
 
   document.addEventListener('visibilitychange', () => {
     G.audio.setMuted('hidden', document.hidden);
