@@ -562,8 +562,8 @@ function broadTree() {
   b.cyl(0.18, 0.28, 3.2, M.bark, 0, 1.6, 0, 8);
   const rng = mulberry32(5);
   for (let i = 0; i < 5; i++) {
-    const g = new THREE.IcosahedronGeometry(1.3 + rng() * 0.6, 1);
-    displace(g, 0.35, 0.8);
+    const g = new THREE.IcosahedronGeometry(1.3 + rng() * 0.6, 0);
+    displace(g, 0.3, 0.8);
     if (i > 2) { g.scale(0.8, 0.8, 0.8); }
     const a = rng() * Math.PI * 2, r = i === 0 ? 0 : 1.0;
     b.add(g, M.foliageDark, Math.cos(a) * r, 3.6 + rng() * 1.4, Math.sin(a) * r);

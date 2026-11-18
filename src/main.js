@@ -148,6 +148,14 @@ async function boot() {
   setTimeout(() => {
     if (!loaded) G.hud.toast('🌴 Welcome to <b>Splash Haven</b>! Your waterpark is open — make it legendary.', 'gold');
     else G.hud.toast(`👋 Welcome back! Day ${G.time.day} at ${G.park.parkName}.`, 'gold');
+    if (G.offline) {
+      const o = G.offline;
+      G.park.earn(o.earned, 'bonus', false);
+      setTimeout(() => {
+        G.hud.toast(`💰 While you were away (${o.awayMin >= 60 ? Math.floor(o.awayMin / 60) + 'h ' : ''}${Math.round(o.awayMin % 60)}m) your park earned <b>${fmtMoney(o.earned)}</b>!`, 'gold');
+        G.audio.play('jackpot', { vol: 0.8 });
+      }, 1600);
+    }
   }, 800);
   last = performance.now();
   requestAnimationFrame(loop);
@@ -174,6 +182,7 @@ function saveGame() {
       time: { day: G.time.day, minutes: Math.min(G.time.minutes, CLOSE_HOUR - 1), total: G.time.total },
       player: { x: G.player.pos.x, z: G.player.pos.z, yaw: G.player.yaw }, weather: G.env.weather,
       thoughts: G.guests.thoughtFeed.slice(-12),
+      savedAt: Date.now(),
     };
     sdk.saveItem('save', JSON.stringify(data));
   } catch (e) { console.warn('save failed', e); }
@@ -197,6 +206,14 @@ function loadGame() {
     for (let i = 0; i < n; i++) G.guests.spawn(true);
     G.park.computeRating();
     G.park.rating = G.park.ratingTarget;
+    // offline earnings: the park keeps running at reduced capacity while you're away
+    if (d.savedAt && G.park.history.length) {
+      const awayMin = Math.min(240, (Date.now() - d.savedAt) / 60000);
+      const last = G.park.history[G.park.history.length - 1];
+      const perRealMin = Math.max(0, last.income) / 6;
+      const earned = Math.round(awayMin * perRealMin * 0.12);
+      if (awayMin > 2 && earned > 0) G.offline = { earned, awayMin };
+    }
     return true;
   } catch (e) { console.warn('load failed', e); return false; }
 }

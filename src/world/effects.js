@@ -125,6 +125,25 @@ export class Effects {
     this.duckProto = this._makeDuck(false);
     this.goldDuckProto = this._makeDuck(true);
 
+    // Seagulls circling the park
+    this.birds = [];
+    const birdMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8, side: THREE.DoubleSide });
+    const tipMat = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.8, side: THREE.DoubleSide });
+    for (let i = 0; i < 9; i++) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), birdMat); body.scale.set(0.8, 0.7, 2.2); g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), birdMat); head.position.set(0, 0.05, 0.25); g.add(head);
+      const wingG = new THREE.PlaneGeometry(0.7, 0.22).translate(0.35, 0, 0).rotateX(-Math.PI / 2);
+      const tipG = new THREE.PlaneGeometry(0.25, 0.16).translate(0.82, 0, -0.02).rotateX(-Math.PI / 2);
+      const wl = new THREE.Group(), wr = new THREE.Group();
+      wl.add(new THREE.Mesh(wingG, birdMat), new THREE.Mesh(tipG, tipMat));
+      wr.add(new THREE.Mesh(wingG, birdMat), new THREE.Mesh(tipG, tipMat)); wr.scale.x = -1;
+      g.add(wl, wr);
+      g.scale.setScalar(1.6);
+      scene.add(g);
+      this.birds.push({ g, wl, wr, cx: rand(-40, 40), cz: rand(-20, 60), r: rand(18, 45), h: rand(22, 40), a: rand(0, 6.28), sp: rand(0.12, 0.22) * (Math.random() < 0.5 ? 1 : -1), ph: rand(0, 6) });
+    }
+
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler();
@@ -364,6 +383,18 @@ export class Effects {
     }
     lm.count = li; lm.instanceMatrix.needsUpdate = true;
 
+    // seagulls
+    for (const b of this.birds) {
+      b.a += b.sp * dt; b.ph += dt * (6 + Math.sin(time * 0.3 + b.cx) * 2);
+      const x = b.cx + Math.cos(b.a) * b.r, z = b.cz + Math.sin(b.a) * b.r;
+      const y = b.h + Math.sin(time * 0.4 + b.cz) * 2;
+      b.g.position.set(x, y, z);
+      const dir = b.sp > 0 ? 1 : -1;
+      b.g.rotation.set(0, Math.atan2(-Math.sin(b.a) * dir, Math.cos(b.a) * dir), -0.25 * dir);
+      const flap = Math.sin(b.ph) > -0.2 ? Math.sin(b.ph) * 0.6 : -0.12;
+      b.wl.rotation.z = flap; b.wr.rotation.z = -flap;
+      b.g.visible = !G.env || G.env.nightF < 0.7;
+    }
     // ducks drift
     for (const d of this.ducks) {
       d.ph += dt;
