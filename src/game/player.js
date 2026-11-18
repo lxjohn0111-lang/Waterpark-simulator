@@ -438,6 +438,14 @@ export class Player {
   }
 
   // ---------------------------------------------------------------- pickups
+  // Quick successive pickups (litter, coins) build a combo streak
+  bumpCombo() {
+    const now = G.time.real;
+    this.combo = now - (this.comboT ?? -99) < 3.5 ? (this.combo || 0) + 1 : 1;
+    this.comboT = now;
+    if (this.combo >= 5 && this.combo % 5 === 0) { G.audio.play('quest', { vol: 0.5 }); G.hud.toast(`🔥 Clean-up streak x${this.combo}!`, 'gold'); }
+    return this.combo;
+  }
   collectNearby(dt) {
     const fx = G.effects;
     const px = this.pos.x, pz = this.pos.z, py = this.pos.y + 0.8;
@@ -451,7 +459,10 @@ export class Player {
       }
       if (d < 0.9) {
         fx.coins.splice(i, 1);
-        G.park.earn(c.value, 'tips', true, new THREE.Vector3(c.x, c.y + 0.5, c.z));
+        const combo = this.bumpCombo();
+        const bonus = combo > 2 ? Math.min(20, combo) : 0;
+        G.park.earn(c.value + bonus, 'tips', false);
+        G.hud.floater(`+$${c.value}${bonus ? ' +' + bonus + ' combo' : ''}`, new THREE.Vector3(c.x, c.y + 0.5, c.z), '');
         G.audio.play('coin', { vol: 0.7 });
         fx.sparkle(c.x, c.y, c.z, 0xffd34a, 10);
         bus.emit('coinCollected', c);
@@ -519,7 +530,9 @@ export class Player {
           this.pickAnim = 0.01;
           park.today.trashPicked++;
           G.audio.play('pickup', { vol: 0.6 });
-          G.hud.floater('+1 Clean', new THREE.Vector3(best.x, 0.6, best.z), 'green');
+          const combo = this.bumpCombo();
+          G.hud.floater(combo > 1 ? `Combo x${combo}! +$${combo}` : '+1 Clean', new THREE.Vector3(best.x, 0.6, best.z), combo > 1 ? '' : 'green');
+          if (combo > 1) park.earn(combo, 'bonus', false);
           bus.emit('trashPicked');
           prompt = '';
         }
@@ -613,7 +626,8 @@ export class Player {
       if (g) info = guestCard(g);
       else {
         const o = park.pickObject(ray, 18);
-        if (o && (o.def.kind !== 'path')) info = objectCard(o);
+        const useful = o && (['pool', 'slide', 'shop', 'building'].includes(o.def.kind) || ['lifeguard', 'toilet'].includes(o.def.facility));
+        if (useful) info = objectCard(o);
         else {
           const s = G.staff.list.find((s) => { const c = new THREE.Vector3(s.pos.x, s.posY + 1.1, s.pos.z); return c.distanceTo(origin) < 14 && ray.distanceSqToPoint(c) < 0.16; });
           if (s) info = `<div class="ic-title">${s.name}</div><div class="ic-row">Staff member<b>${s.job ? jobText(s) : 'Idle'}</b></div>`;

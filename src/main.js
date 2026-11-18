@@ -169,7 +169,8 @@ function newGame() {
   seedStarterExtras();
   for (let i = 0; i < 14; i++) G.guests.spawn(true);
   for (let i = 0; i < 4; i++) G.guests.spawn(false);
-  G.player.teleport(0, 59.5, 0);
+  G.player.teleport(0, 59.5, -0.2);
+  G.player.pitch = 0.04;
   G.progression.refreshQuests();
   G.env.setWeather('sunny', true);
 }

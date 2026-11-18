@@ -18,7 +18,9 @@ export class Staff {
     const a = new Agent(look);
     a.type = type;
     a.speed = 1.45;
-    a.pos.set(rand(-2, 2), 0, 59);
+    const sp = G.park.grid.randomParkPoint() || [6, 50];
+    a.pos.set(sp[0], 0, Math.min(sp[1], 54));
+    if (!G.park.grid.isWalkable(a.pos.x, a.pos.z)) a.pos.set(sp[0], 0, sp[1]);
     a.job = null;
     a.cd = rand(0.2, 1);
     a.name = def.name;
