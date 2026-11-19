@@ -74,7 +74,7 @@ export class Pipeline {
     const r = this.renderer;
     const dpr = Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1);
     r.setPixelRatio(dpr * (quality === 'low' ? 0.85 : 1));
-    const w = window.innerWidth, h = window.innerHeight;
+    const [w, h] = G.viewSize();
     r.setSize(w, h, false);
     if (this.composer) { this.composer.dispose(); }
     const rt = new THREE.WebGLRenderTarget(w * r.getPixelRatio(), h * r.getPixelRatio(), { type: THREE.HalfFloatType });
@@ -112,7 +112,7 @@ export class Pipeline {
   }
 
   resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const [w, h] = G.viewSize();
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);

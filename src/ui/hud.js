@@ -132,10 +132,11 @@ export class HUD {
     } else { useIco = toolIco; useLbl = ctx.use || toolLbl; }
     set('useLbl', useLbl, (v) => (E.useLbl.textContent = v));
     set('useIco', useIco, (v) => (E.useIco.textContent = v));
+    // the E / action button is always on screen: dim "E" when idle, glowing with the action's name when usable
     const act = !B.active && !P.ride ? ctx.act : null;
-    set('act', act || '', (v) => { E.act.classList.toggle('off', !v); if (v) E.actLbl.textContent = v; });
+    set('act', act || '', (v) => { E.act.classList.toggle('idle', !v); E.actLbl.textContent = v || 'E'; });
     set('jump', ctx.jump || 'Jump', (v) => (E.jumpLbl.textContent = v));
-    set('dive', !!(P.inWater && P.mode === 'swim' && !P.ride), (v) => E.dive.classList.toggle('off', !v));
+    set('dive', !!(P.inWater && P.mode === 'swim' && !P.ride), (v) => E.dive.classList.toggle('idle', !v));
     const canColor = B.active && B.mode === 'place' && B.def && (B.def.colorable || B.def.kind === 'slide') && !B.moving;
     const canRot = B.active && (B.mode === 'place' || !!B.moving);
     set('col', !!canColor, (v) => E.col.classList.toggle('off', !v));
@@ -208,7 +209,7 @@ export class HUD {
   }
   updateFloaters(dt) {
     const cam = G.camera;
-    const w = window.innerWidth, h = window.innerHeight;
+    const [w, h] = G.viewSize();
     const v = new THREE.Vector3();
     for (let i = this.floaters.length - 1; i >= 0; i--) {
       const f = this.floaters[i];
@@ -236,7 +237,7 @@ export class HUD {
     const ca = $('compass-arrows');
     const targets = G.guests.emergencies.filter((e) => !e.handledBy).map((e) => ({ x: e.guest.pos.x, y: 0.5, z: e.guest.pos.z, label: 'HELP!' }));
     let ahtml = '';
-    const cam = G.camera, w = window.innerWidth, h = window.innerHeight;
+    const cam = G.camera, [w, h] = G.viewSize();
     for (const t of targets) {
       const v = new THREE.Vector3(t.x, t.y, t.z);
       const d = v.distanceTo(cam.position);

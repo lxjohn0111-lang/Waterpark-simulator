@@ -281,6 +281,7 @@ body.touch {
   --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
   --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
   --edge: 8px;
+  --lift: 0px;
 }
 body.touch #hud { z-index: 22; }
 body.touch #intro-hint { display: none !important; }
@@ -335,13 +336,13 @@ body.touch #infocard .mini-bar { margin: 2px 0 3px; }
 body.touch #infocard .ic-thought { grid-column: 1 / -1; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* crosshair & prompt (prompt sits just above the hotbar) */
-body.touch #prompt { top: auto; bottom: calc(66px + var(--sab)); font-size: 13px; white-space: normal; max-width: 44vw; line-height: 1.3; }
+body.touch #prompt { top: auto; bottom: calc(66px + var(--sab) + var(--lift)); font-size: 13px; white-space: normal; max-width: 44vw; line-height: 1.3; }
 body.touch #prompt .key { display: none; }
 body.touch #prompt .sub { font-size: 11px; margin-top: 2px; }
 body.touch #progress-ring { width: 44px; height: 44px; }
 
 /* bottom-centre: hotbar */
-body.touch #hotbar { bottom: calc(8px + var(--sab)); gap: 5px; }
+body.touch #hotbar { bottom: calc(8px + var(--sab) + var(--lift)); gap: 5px; }
 body.touch .slot { width: 46px; height: 46px; border-radius: 12px; font-size: 18px; }
 body.touch .slot .k { display: none; }
 body.touch .slot .n { font-size: 8px; margin-top: 0; letter-spacing: 0; }
@@ -350,13 +351,13 @@ body.touch .slot.active { transform: translateY(-3px); }
 body.touch.building #hotbar { display: none; }
 
 /* build mode: buttons replace the hotbar */
-body.touch.building #build-btns { display: flex; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(8px + var(--sab)); gap: 6px; pointer-events: none; }
+body.touch.building #build-btns { display: flex; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(8px + var(--sab) + var(--lift)); gap: 6px; pointer-events: none; }
 body.touch .bb { pointer-events: auto; width: 56px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(10,30,45,.7); color: #fff; font: 800 9px var(--font); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-transform: uppercase; }
 body.touch .bb b { font-size: 17px; line-height: 1; }
 body.touch .bb.bb-exit { background: rgba(32,184,98,.8); }
 body.touch .bb:active { background: rgba(39,211,255,.7); }
 body.touch .bb.off { display: none; }
-body.touch #build-panel { bottom: calc(62px + var(--sab)); min-width: 0; width: max-content; max-width: 44vw; padding: 5px 12px; font-size: 11px; box-shadow: none; }
+body.touch #build-panel { bottom: calc(62px + var(--sab) + var(--lift)); min-width: 0; width: max-content; max-width: 44vw; padding: 5px 12px; font-size: 11px; box-shadow: none; }
 body.touch #build-panel .bp-title { font-size: 13px; }
 body.touch #build-panel .bp-keys { display: none; }
 body.touch #build-panel .bp-msg { min-height: 0; margin-top: 2px; }
@@ -364,11 +365,11 @@ body.touch #build-panel .bp-msg:empty { display: none; }
 
 /* bottom-left: joystick */
 body.touch #joy-zone { position: absolute; left: 0; bottom: 0; width: 30vw; height: 52%; pointer-events: auto; }
-body.touch #joy-base { position: absolute; left: calc(16px + var(--sal)); bottom: calc(12px + var(--sab)); width: 104px; height: 104px; border-radius: 50%; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.28); }
+body.touch #joy-base { position: absolute; left: calc(16px + var(--sal)); bottom: calc(12px + var(--sab) + var(--lift)); width: 104px; height: 104px; border-radius: 50%; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.28); }
 body.touch #joy-knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255,255,255,.55); }
 
 /* bottom-right: action cluster (USE big, ACTION left of it, JUMP above, DIVE diagonal) */
-body.touch #touch-btns { position: absolute; right: calc(12px + var(--sar)); bottom: calc(10px + var(--sab)); width: 150px; height: 140px; pointer-events: none; }
+body.touch #touch-btns { position: absolute; right: calc(12px + var(--sar)); bottom: calc(10px + var(--sab) + var(--lift)); width: 150px; height: 140px; pointer-events: none; }
 body.touch .tb { position: absolute; pointer-events: auto; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(10,30,45,.6); color: #fff; font: 900 10px var(--font); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; text-transform: uppercase; letter-spacing: .3px; }
 body.touch .tb:active, body.touch .tb.pressed { background: rgba(39,211,255,.75); }
 body.touch .tb-use { right: 0; bottom: 0; width: 70px; height: 70px; background: rgba(39,211,255,.45); }
@@ -377,6 +378,8 @@ body.touch .tb-act { right: 80px; bottom: 4px; width: 62px; height: 62px; backgr
 body.touch .tb-jump { right: 8px; bottom: 80px; width: 54px; height: 54px; }
 body.touch .tb-dive { right: 76px; bottom: 76px; width: 50px; height: 50px; }
 body.touch .tb.off { display: none; }
+body.touch .tb.idle { opacity: .55; animation: none; }
+body.touch .tb-act.idle { background: rgba(10,30,45,.6); color: #fff; border-color: rgba(255,255,255,.35); font-size: 20px; }
 @keyframes actPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,200,60,.6); } 50% { box-shadow: 0 0 0 8px rgba(255,200,60,0); } }
 
 /* compass arrows & level-up */
@@ -411,9 +414,9 @@ body.touch #levelup .lu-item:nth-child(n+5) { display: none; }
   body.touch #hud-tr #minimap { display: none; }
   body.touch #toasts { top: calc(78px + var(--sat)); width: 46vw; }
   body.touch #infocard { display: none !important; }
-  body.touch #hotbar, body.touch.building #build-btns { bottom: calc(158px + var(--sab)); }
-  body.touch #prompt { bottom: calc(214px + var(--sab)); max-width: 88vw; }
-  body.touch #build-panel { bottom: calc(212px + var(--sab)); max-width: 88vw; }
+  body.touch #hotbar, body.touch.building #build-btns { bottom: calc(158px + var(--sab) + var(--lift)); }
+  body.touch #prompt { bottom: calc(214px + var(--sab) + var(--lift)); max-width: 88vw; }
+  body.touch #build-panel { bottom: calc(212px + var(--sab) + var(--lift)); max-width: 88vw; }
   body.touch #joy-zone { width: 50vw; height: 40%; }
 }
 

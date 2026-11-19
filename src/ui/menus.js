@@ -256,6 +256,7 @@ export class Menus {
       <div class="settings-row"><span>Field of view</span><input type="range" min="60" max="100" value="${s.fov}" data-set="fov"></div>
       <div class="settings-row"><span>${G.isTouch ? 'Invert look' : 'Invert mouse Y'}</span><div class="seg" id="seg-inv"><button class="${!s.invertY ? 'on' : ''}" data-v="0">Off</button><button class="${s.invertY ? 'on' : ''}" data-v="1">On</button></div></div>
       <div class="settings-row"><span>Show FPS</span><div class="seg" id="seg-fps"><button class="${!s.showFps ? 'on' : ''}" data-v="0">Off</button><button class="${s.showFps ? 'on' : ''}" data-v="1">On</button></div></div>
+      ${G.isTouch ? `<div class="settings-row"><span>Raise buttons</span><div class="seg" id="seg-lift">${[0, 30, 60, 90].map((v) => `<button class="${(s.lift || 0) === v ? 'on' : ''}" data-v="${v}">${v ? '+' + v : 'Off'}</button>`).join('')}</div></div>` : ''}
       <div class="settings-row"><span style="color:#ff9a9a">Start a new park</span><button class="btn small red" id="btn-reset">Reset progress</button></div></div>`;
   }
   bindSettings(c) {
@@ -268,6 +269,7 @@ export class Menus {
     }));
     c.querySelectorAll('#seg-inv button').forEach((b) => b.addEventListener('click', () => { s.invertY = b.dataset.v === '1'; G.saveSettings(); c.querySelectorAll('#seg-inv button').forEach((x) => x.classList.toggle('on', x === b)); }));
     c.querySelectorAll('#seg-fps button').forEach((b) => b.addEventListener('click', () => { s.showFps = b.dataset.v === '1'; G.saveSettings(); c.querySelectorAll('#seg-fps button').forEach((x) => x.classList.toggle('on', x === b)); }));
+    c.querySelectorAll('#seg-lift button').forEach((b) => b.addEventListener('click', () => { s.lift = Number(b.dataset.v); G.applyLift(); G.saveSettings(); c.querySelectorAll('#seg-lift button').forEach((x) => x.classList.toggle('on', x === b)); }));
     const reset = c.querySelector('#btn-reset');
     if (reset) reset.addEventListener('click', () => {
       if (reset.dataset.confirm) { G.resetGame(); return; }

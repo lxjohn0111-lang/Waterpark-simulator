@@ -3,8 +3,15 @@
 export const G = {
   time: { day: 1, minutes: 9 * 60 - 20, speed: 1, paused: false, total: 0, real: 0 },
   quality: 'medium',
-  settings: { volume: 0.8, music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false, quality: 'auto', fov: 75, showFps: false },
+  settings: { volume: 0.8, music: 0.45, sfx: 0.9, sensitivity: 1, invertY: false, quality: 'auto', fov: 75, showFps: false, lift: 0 },
   isTouch: false,
+  // Size of the game area (#app). On phones it can be smaller than the window
+  // when part of the page is hidden behind browser/app bars.
+  viewSize() {
+    const a = document.getElementById('app');
+    const w = (a && a.clientWidth) || window.innerWidth, h = (a && a.clientHeight) || window.innerHeight;
+    return [w, h];
+  },
 };
 
 // Tiny event bus

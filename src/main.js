@@ -73,13 +73,14 @@ async function boot() {
   G.renderer = renderer;
   const scene = new THREE.Scene();
   G.scene = scene;
-  const camera = new THREE.PerspectiveCamera(G.settings.fov, window.innerWidth / window.innerHeight, 0.05, 4000);
+  const [vw0, vh0] = G.viewSize();
+  const camera = new THREE.PerspectiveCamera(G.settings.fov, vw0 / vh0, 0.05, 4000);
   G.camera = camera;
   const vmScene = new THREE.Scene();
   vmScene.add(new THREE.HemisphereLight(0xeaf6ff, 0x6a7a5a, 1.2));
   const vmSun = new THREE.DirectionalLight(0xffffff, 1.6); vmSun.position.set(1, 2, 1); vmScene.add(vmSun);
   G.vmScene = vmScene;
-  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.setSize(vw0, vh0, false);
 
   await generateTextures(renderer, (p, t) => setLoad(0.05 + p * 0.4, t));
   initMaterials();
@@ -136,8 +137,9 @@ async function boot() {
 
   wireEvents();
   window.addEventListener('resize', () => G.pipeline.resize());
+  window.addEventListener('orientationchange', () => setTimeout(() => G.pipeline.resize(), 300));
   G.pipeline.resize();
-  if (G.isTouch) G.input.setupTouch();
+  if (G.isTouch) { G.input.setupTouch(); fitToVisibleArea(); G.applyLift(); }
 
   await new Promise((r) => setTimeout(r, 150));
   $('loading').classList.add('fade');
@@ -179,6 +181,57 @@ function newGame() {
   G.progression.refreshQuests();
   G.env.setWeather('sunny', true);
 }
+
+// ------------------------------------------------------------------ phones: keep the game inside the visible area
+// If the page is taller than what is actually on screen (e.g. inside an app's
+// web view in landscape, or under browser bars), shrink the game area to the
+// visible part so the bottom buttons can't end up off-screen.
+function fitToVisibleArea() {
+  const app = $('app');
+  const sentinel = document.createElement('div');
+  sentinel.style.cssText = 'position:fixed;inset:0;pointer-events:none;visibility:hidden;z-index:-1';
+  document.body.appendChild(sentinel);
+  let last = '';
+  const apply = (top, bottom) => {
+    const key = top + ',' + bottom;
+    if (key === last) return;
+    last = key;
+    app.style.top = top + 'px';
+    app.style.bottom = bottom + 'px';
+    G.pipeline.resize();
+  };
+  const fromVV = () => {
+    // visualViewport covers browser bars / pinch-zoom inside our own document
+    const vv = window.visualViewport;
+    if (!vv) return null;
+    return { top: Math.max(0, Math.round(vv.offsetTop)), bottom: Math.max(0, Math.round(window.innerHeight - vv.offsetTop - vv.height)) };
+  };
+  let ioRect = null;
+  const update = () => {
+    const H = window.innerHeight;
+    let top = 0, bottom = 0;
+    const v = fromVV();
+    if (v) { top = v.top; bottom = v.bottom; }
+    if (ioRect && ioRect.height > 160) { top = Math.max(top, Math.round(ioRect.top)); bottom = Math.max(bottom, Math.round(H - ioRect.bottom)); }
+    if (H - top - bottom < 160) { top = 0; bottom = 0; }
+    apply(Math.max(0, top), Math.max(0, bottom));
+  };
+  try {
+    // with the implicit root this reports how much of us is visible on the real screen, even inside iframes
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[entries.length - 1];
+      ioRect = e.isIntersecting ? e.intersectionRect : null;
+      update();
+    }, { threshold: Array.from({ length: 51 }, (_, i) => i / 50) });
+    io.observe(sentinel);
+  } catch (e) { /* old browser */ }
+  if (window.visualViewport) { window.visualViewport.addEventListener('resize', update); window.visualViewport.addEventListener('scroll', update); }
+  window.addEventListener('resize', update);
+  update();
+}
+
+// Manual "move buttons up" offset for screens where something still covers the bottom edge
+G.applyLift = () => document.body.style.setProperty('--lift', (G.settings.lift || 0) + 'px');
 
 // ------------------------------------------------------------------ save/load
 function saveGame() {
