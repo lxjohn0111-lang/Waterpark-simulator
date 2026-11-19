@@ -100,6 +100,7 @@ export class HUD {
     ps.textContent = open ? `OPEN · ${G.env.temp}°C ${G.env.weatherInfo.label.toUpperCase()}` : 'CLOSED';
     ps.classList.toggle('closed', !open);
     this.updateFloaters(dt);
+    if (G.isTouch) this.updateTouch();
     this.updateAlerts();
     this.minimapT -= dt;
     if (this.minimapT <= 0) { this.minimapT = 0.2; this.drawMinimap(); }
@@ -112,6 +113,34 @@ export class HUD {
   }
 
   shake(t) { this.shakeT = Math.max(this.shakeT, t); }
+
+  // Contextual labels/visibility for the on-screen touch buttons
+  updateTouch() {
+    if (!this.tEls) {
+      const q = (id) => document.getElementById(id);
+      this.tEls = { act: q('tb-act'), actLbl: q('tb-act-lbl'), use: q('tb-use'), useLbl: q('tb-use-lbl'), useIco: q('tb-use-ico'), jumpLbl: q('tb-jump-lbl'), dive: q('tb-dive'), rot: q('bb-rotate'), col: q('bb-color') };
+      this.tState = {};
+    }
+    const E = this.tEls, S = this.tState, P = G.player, B = G.build;
+    const ctx = P.ctx || {};
+    const set = (k, v, fn) => { if (S[k] !== v) { S[k] = v; fn(v); } };
+    const toolIco = ['✋', '🥅', '🔧'][P.tool], toolLbl = ['Grab', 'Skim', 'Fix'][P.tool];
+    let useLbl, useIco;
+    if (B.active) {
+      useIco = B.mode === 'sell' ? '🔨' : '🏗️';
+      useLbl = B.mode === 'sell' ? 'Demolish' : B.mode === 'move' && !B.moving ? 'Pick up' : B.def && B.def.kind === 'path' ? 'Paint' : 'Place';
+    } else { useIco = toolIco; useLbl = ctx.use || toolLbl; }
+    set('useLbl', useLbl, (v) => (E.useLbl.textContent = v));
+    set('useIco', useIco, (v) => (E.useIco.textContent = v));
+    const act = !B.active && !P.ride ? ctx.act : null;
+    set('act', act || '', (v) => { E.act.classList.toggle('off', !v); if (v) E.actLbl.textContent = v; });
+    set('jump', ctx.jump || 'Jump', (v) => (E.jumpLbl.textContent = v));
+    set('dive', !!(P.inWater && P.mode === 'swim' && !P.ride), (v) => E.dive.classList.toggle('off', !v));
+    const canColor = B.active && B.mode === 'place' && B.def && (B.def.colorable || B.def.kind === 'slide') && !B.moving;
+    const canRot = B.active && (B.mode === 'place' || !!B.moving);
+    set('col', !!canColor, (v) => E.col.classList.toggle('off', !v));
+    set('rot', !!canRot, (v) => E.rot.classList.toggle('off', !v));
+  }
 
   renderXP() {
     const p = G.progression;
@@ -128,9 +157,13 @@ export class HUD {
     if (!p) return;
     const html = p.quests.map((q) => {
       const pr = q.decimal ? q.progress.toFixed(1) + ' / ' + q.goal.toFixed(1) : (q.goal > 200 ? fmtMoney(q.progress) + ' / ' + fmtMoney(q.goal) : Math.floor(q.progress) + ' / ' + q.goal);
-      return `<div class="quest ${q.done ? 'done' : ''} ${q.tut ? 'tut' : ''}"><div class="q-title"><span>${q.done ? '✅ ' : ''}${q.text}</span><span class="q-rew">+${fmtMoney(q.cash)}</span></div>${q.hint && !q.done ? `<div class="q-hint">${q.hint}</div>` : ''}<div class="q-bar"><div style="width:${Math.round(clamp(q.progress / q.goal, 0, 1) * 100)}%"></div></div><div class="q-hint" style="text-align:right">${pr}</div></div>`;
+      return `<div class="quest ${q.done ? 'done' : ''} ${q.tut ? 'tut' : ''}"><div class="q-title"><span>${q.done ? '✅ ' : ''}${q.text}</span><span class="q-rew">+${fmtMoney(q.cash)}</span></div>${(G.isTouch ? q.hintTouch || q.hint : q.hint) && !q.done ? `<div class="q-hint">${G.isTouch ? q.hintTouch || q.hint : q.hint}</div>` : ''}<div class="q-bar"><div style="width:${Math.round(clamp(q.progress / q.goal, 0, 1) * 100)}%"></div></div><div class="q-hint" style="text-align:right">${pr}</div></div>`;
     }).join('');
     if (html !== this.lastQuestHtml) { $('quests').innerHTML = html; this.lastQuestHtml = html; }
+    if (G.isTouch && !this.questTap) {
+      this.questTap = true;
+      $('quests').addEventListener('click', (e) => { e.stopPropagation(); if (!G.menus.open) G.menus.toggleTablet('goals'); });
+    }
   }
 
   setPrompt(html) { if (html !== this.lastPrompt) { $('prompt').innerHTML = html; this.lastPrompt = html; } }

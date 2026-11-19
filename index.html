@@ -38,7 +38,10 @@
         <div id="alerts"></div>
       </div>
       <div id="hud-tr">
-        <div id="level-box"><div id="level-badge">1</div><div class="lvl-right"><div class="lvl-label">LEVEL <span id="lvl-num">1</span></div><div class="xp-bar"><div id="xp-fill"></div></div><div id="xp-text">0 / 100 XP</div></div></div>
+        <div id="tr-row">
+          <div id="level-box"><div id="level-badge">1</div><div class="lvl-right"><div class="lvl-label">LEVEL <span id="lvl-num">1</span></div><div class="xp-bar"><div id="xp-fill"></div></div><div id="xp-text">0 / 100 XP</div></div></div>
+          <button id="btn-pause" aria-label="Pause">❚❚</button>
+        </div>
         <div id="quests"></div>
       </div>
       <div id="crosshair"><div class="dot"></div></div>
@@ -60,12 +63,16 @@
     <div id="touch-ui" class="hidden">
       <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
       <div id="touch-btns">
-        <button data-t="use" class="tb big">USE</button>
-        <button data-t="interact" class="tb">E</button>
-        <button data-t="jump" class="tb">JUMP</button>
-        <button data-t="build" class="tb">BUILD</button>
-        <button data-t="tablet" class="tb">PARK</button>
-        <button data-t="tool" class="tb">TOOL</button>
+        <button data-t="use" id="tb-use" class="tb tb-use"><span class="tb-ico" id="tb-use-ico">✋</span><span class="tb-lbl" id="tb-use-lbl">GRAB</span></button>
+        <button data-t="interact" id="tb-act" class="tb tb-act"><span class="tb-lbl" id="tb-act-lbl">ACTION</span></button>
+        <button data-t="jump" id="tb-jump" class="tb tb-jump"><span class="tb-lbl" id="tb-jump-lbl">JUMP</span></button>
+        <button data-t="dive" id="tb-dive" class="tb tb-dive"><span class="tb-lbl">DIVE</span></button>
+      </div>
+      <div id="build-btns">
+        <button data-t="rotate" class="bb" id="bb-rotate"><b>↻</b><span>Rotate</span></button>
+        <button data-t="color" class="bb" id="bb-color"><b>🎨</b><span>Colour</span></button>
+        <button data-t="catalog" class="bb"><b>🏗️</b><span>Items</span></button>
+        <button data-t="exit" class="bb bb-exit"><b>✓</b><span>Done</span></button>
       </div>
     </div>
   </div>

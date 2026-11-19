@@ -154,10 +154,12 @@ export class Player {
     const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const wish = fwd.multiplyScalar(mz).addScaledVector(right, mx);
-    const sprint = playing && (input.down('ShiftLeft') || input.down('ShiftRight'));
+    // on touch, pushing the joystick all the way sprints
+    const stickLen = Math.hypot(input.touch.move.x, input.touch.move.y);
+    const sprint = playing && (input.down('ShiftLeft') || input.down('ShiftRight') || stickLen > 0.94);
     const jumpHeld = playing && (input.down('Space') || input.tdown('jump'));
     const jumpHit = playing && (input.hit('Space') || input.thit('jump'));
-    const diveHeld = playing && (input.down('KeyC') || input.down('ControlLeft'));
+    const diveHeld = playing && (input.down('KeyC') || input.down('ControlLeft') || input.tdown('dive'));
 
     const ground = this.groundAt(this.pos.x, this.pos.z);
     const pool = ground.pool;
@@ -306,7 +308,7 @@ export class Player {
     this.actBlend = damp(this.actBlend || 0, act, 10, dt);
     const sway = this.vmSway || { x: 0, y: 0 };
     const bx = Math.cos(this.bob) * 0.012 * this.bobAmt - sway.x, by = Math.abs(Math.sin(this.bob)) * 0.014 * this.bobAmt + sway.y;
-    const hidden = this.ride || this.mode === 'swim' || G.build.active;
+    const hidden = this.ride || this.mode === 'swim' || G.build.active || G.isTouch;
     tool.visible = !hidden;
     this.vmArm.visible = !hidden;
     if (hidden) return;
@@ -484,7 +486,10 @@ export class Player {
   // ---------------------------------------------------------------- interaction
   updateInteraction(dt, input) {
     const hud = G.hud;
+    // ctx tells the touch UI what the contextual buttons do right now
+    const ctx = this.ctx = { act: null, use: null, jump: null };
     if (G.ui.blocking || this.ride || G.build.active) { hud.setPrompt(''); hud.setInfo(null); hud.setProgress(-1); this.hold.kind = null; return; }
+    const T = G.isTouch;
     const cam = this.cam;
     const origin = cam.position.clone();
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
@@ -501,6 +506,7 @@ export class Player {
     const em = G.guests.emergencies.find((e) => !e.handledBy && Math.hypot(e.guest.pos.x - this.pos.x, e.guest.pos.z - this.pos.z) < 2.6);
     if (em) {
       prompt = key('E') + 'Rescue the swimmer!';
+      ctx.act = 'Rescue';
       if (eHit) { G.guests.rescue(em.guest, 'player'); }
     }
     // 2. rubber ducks
@@ -509,6 +515,7 @@ export class Player {
         const p = new THREE.Vector3(d.x, WATER_Y + 0.15, d.z);
         if (p.distanceTo(origin) < 4.5 && ray.distanceSqToPoint(p) < 0.5 * 0.5) {
           prompt = key('E') + (d.gold ? 'Grab the GOLDEN duck!' : 'Grab rubber duck') + `<span class="sub">+${fmtMoney(d.value)}</span>`;
+          ctx.act = 'Grab';
           if (eHit || (lHit && this.tool === 0)) this.collectDuck(d);
           break;
         }
@@ -525,6 +532,7 @@ export class Player {
       }
       if (best) {
         prompt = key('E') + 'Pick up litter';
+        ctx.act = 'Pick up'; ctx.use = 'Pick up';
         if (eHit || lHit) {
           fx.removeTrash(best);
           this.pickAnim = 0.01;
@@ -549,6 +557,7 @@ export class Player {
           const q = Math.round(o.quality);
           prompt = key('LMB', true) + `Hold to skim ${o.def.kind === 'slide' ? 'landing pool' : o.def.name}<span class="sub">Water quality ${q}%</span>`;
           progress = o.quality / 100;
+          ctx.use = 'Skim';
           if (lHeld) {
             hold = 'skim';
             const before = o.quality;
@@ -561,7 +570,7 @@ export class Player {
           }
         }
       }
-      if (!prompt) prompt = '<span class="sub">Aim at pool water and hold the mouse to clean it</span>';
+      if (!prompt) prompt = `<span class="sub">Aim at pool water and hold ${T ? 'USE' : 'the mouse'} to clean it</span>`;
     }
     if (!prompt && this.tool === 2) {
       const o = park.pickObject(ray, 14, (o) => o.def.kind === 'slide');
@@ -569,6 +578,7 @@ export class Player {
         const c = Math.round(o.condition);
         prompt = (o.condition < 100 ? key('LMB', true) + 'Hold to repair ' : '') + o.def.name + `<span class="sub">${o.broken ? '⚠ BROKEN' : 'Condition ' + c + '%'}</span>`;
         progress = o.condition / 100;
+        if (o.condition < 100) ctx.use = 'Repair';
         if (lHeld && o.condition < 100) {
           hold = 'repair';
           o.condition = Math.min(100, o.condition + 18 * dt);
@@ -577,14 +587,15 @@ export class Player {
           if (o.condition >= 100) { if (o.broken) { o.broken = false; bus.emit('repaired', { obj: o, by: 'player' }); } G.audio.play('fixed', { vol: 0.6 }); }
         }
       }
-      if (!prompt) prompt = '<span class="sub">Aim at a slide and hold the mouse to repair it</span>';
+      if (!prompt) prompt = `<span class="sub">Aim at a slide and hold ${T ? 'USE' : 'the mouse'} to repair it</span>`;
     }
     // 4. slides: ride
     if (!prompt || prompt.startsWith('<span class="sub">')) {
       for (const o of park.lists.slides) {
         const e = o.slide.entrance;
         if (Math.hypot(e.x - this.pos.x, e.z - this.pos.z) < 3.2 && Math.abs(this.pos.y) < 1) {
-          prompt = o.broken ? `<span class="sub">${o.def.name} is broken — use the Wrench [3]</span>` : key('E') + 'Ride ' + o.def.name + '<span class="sub">Skip the queue — you own the place!</span>';
+          prompt = o.broken ? `<span class="sub">${o.def.name} is broken — use the Wrench${T ? '' : ' [3]'}</span>` : key('E') + 'Ride ' + o.def.name + '<span class="sub">Skip the queue — you own the place!</span>';
+          if (!o.broken) ctx.act = 'Ride';
           if (eHit && !o.broken) this.startRide(o);
           break;
         }
@@ -595,6 +606,7 @@ export class Player {
       const o = park.pickObject(ray, 5, (o) => o.def.facility === 'toilet');
       if (o && o.dirt > 5) {
         prompt = key('E', false, true) + 'Hold to clean restrooms' + `<span class="sub">${Math.round(o.dirt)}% dirty</span>`;
+        ctx.act = 'Clean';
         progress = 1 - o.dirt / 100;
         if (eHeld) { hold = 'clean'; o.dirt = Math.max(0, o.dirt - 30 * dt); if (Math.random() < dt * 4) G.audio.play('swish', { vol: 0.3 }); if (o.dirt <= 0) bus.emit('toiletCleaned', o); }
       }
@@ -606,7 +618,8 @@ export class Player {
         if (p.distanceTo(origin) < 9 && ray.distanceSqToPoint(p) < 1.4 * 1.4) {
           const price = park.landPrice();
           const confirm = this.confirmBuy && this.confirmBuy.plot === s.plot && G.time.real - this.confirmBuy.t < 3;
-          prompt = key('E') + (confirm ? 'Press again to confirm purchase' : 'Buy this land') + `<span class="sub">${fmtMoney(price)} · expands your park</span>`;
+          prompt = key('E') + (confirm ? (T ? 'Tap again to confirm purchase' : 'Press again to confirm purchase') : 'Buy this land') + `<span class="sub">${fmtMoney(price)} · expands your park</span>`;
+          ctx.act = confirm ? 'Confirm' : 'Buy';
           if (eHit) {
             if (!park.canAfford(price)) { G.hud.toast('Not enough cash for this land', 'bad'); G.audio.play('error'); }
             else if (confirm) { if (park.buyPlot(s.plot)) { this.confirmBuy = null; } }
@@ -618,7 +631,7 @@ export class Player {
     }
     // 6b. swimming hint
     if ((!prompt || prompt.startsWith('<span class="sub">')) && this.inWater && this.pos.y > this.waterY - EYE - 0.4) {
-      prompt = key('Space') + 'Climb out' + (this.mode === 'swim' ? '<span class="sub">Hold C to dive · Space to surface</span>' : '');
+      prompt = key('Space') + 'Climb out' + (this.mode === 'swim' ? `<span class="sub">${T ? 'Hold DIVE to go under · JUMP climbs out at the edge' : 'Hold C to dive · Space to surface'}</span>` : '');
     }
     // 7. info cards
     if (!info) {
@@ -634,6 +647,7 @@ export class Player {
         }
       }
     }
+    if (this.inWater) ctx.jump = this.pos.y > this.waterY - EYE - 0.4 ? 'Climb out' : 'Swim up';
     this.hold.kind = hold;
     hud.setPrompt(prompt);
     hud.setInfo(info);

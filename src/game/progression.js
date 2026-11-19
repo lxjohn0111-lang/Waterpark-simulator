@@ -5,13 +5,13 @@ import { ITEMS, STAFF, xpForLevel } from './catalog.js';
 import { fmtMoney, pick, rand } from '../core/utils.js';
 
 const TUTORIAL = [
-  { id: 't_trash', text: 'Pick up 3 pieces of litter', hint: 'Aim at litter on the ground and press E', goal: 3, ev: 'trashPicked', cash: 150, xp: 40 },
-  { id: 't_ride', text: 'Ride the Twister slide', hint: 'Walk to the slide\'s queue entrance and press E', goal: 1, ev: 'playerRide', cash: 250, xp: 50 },
-  { id: 't_build', text: 'Place 2 Sun Loungers', hint: 'Press B → Facilities → Sun Lounger', goal: 2, ev: 'placed', filter: (o) => o.key === 'sunbed', cash: 250, xp: 50 },
-  { id: 't_skim', text: 'Skim a pool for 4 seconds', hint: 'Press 2 for the skimmer, aim at water, hold left mouse', goal: 4, ev: 'skimSec', cash: 200, xp: 40 },
-  { id: 't_hire', text: 'Hire a Pool Technician', hint: 'Press Tab → Staff (unlocks at level 2)', goal: 1, ev: 'hired', filter: (t) => t === 'pooltech', cash: 300, xp: 60, minLevel: 2 },
+  { id: 't_trash', text: 'Pick up 3 pieces of litter', hint: 'Aim at litter on the ground and press E', hintTouch: 'Aim the dot at litter and tap PICK UP', goal: 3, ev: 'trashPicked', cash: 150, xp: 40 },
+  { id: 't_ride', text: 'Ride the Twister slide', hint: 'Walk to the slide\'s queue entrance and press E', hintTouch: 'Walk to the slide\'s queue entrance and tap RIDE', goal: 1, ev: 'playerRide', cash: 250, xp: 50 },
+  { id: 't_build', text: 'Place 2 Sun Loungers', hint: 'Press B → Facilities → Sun Lounger', hintTouch: 'Tap BUILD → Facilities → Sun Lounger', goal: 2, ev: 'placed', filter: (o) => o.key === 'sunbed', cash: 250, xp: 50 },
+  { id: 't_skim', text: 'Skim a pool for 4 seconds', hint: 'Press 2 for the skimmer, aim at water, hold left mouse', hintTouch: 'Pick the Skimmer, aim at water, hold USE', goal: 4, ev: 'skimSec', cash: 200, xp: 40 },
+  { id: 't_hire', text: 'Hire a Pool Technician', hint: 'Press Tab → Staff (unlocks at level 2)', hintTouch: 'Tap MANAGE → Staff (unlocks at level 2)', goal: 1, ev: 'hired', filter: (t) => t === 'pooltech', cash: 300, xp: 60, minLevel: 2 },
   { id: 't_coins', text: 'Collect 5 tip coins', hint: 'Happy guests drop coins — walk over them', goal: 5, ev: 'coinCollected', cash: 200, xp: 50 },
-  { id: 't_food', text: 'Build a Burger Bay', hint: 'Unlocks at level 2 · B → Food & Shops', goal: 1, ev: 'placed', filter: (o) => o.key === 'burger', cash: 400, xp: 80, minLevel: 2 },
+  { id: 't_food', text: 'Build a Burger Bay', hint: 'Unlocks at level 2 · B → Food & Shops', hintTouch: 'Unlocks at level 2 · BUILD → Food & Shops', goal: 1, ev: 'placed', filter: (o) => o.key === 'burger', cash: 400, xp: 80, minLevel: 2 },
   { id: 't_rating', text: 'Reach a 3★ park rating', hint: 'Keep guests happy, the park clean & add scenery', goal: 3, ev: 'rating', cash: 600, xp: 100 },
 ];
 
@@ -188,7 +188,7 @@ export class Progression {
       // re-attach filters from tutorial definitions
       const base = q.tut ? TUTORIAL.find((t) => t.id === q.id) : null;
       if (q.ev === 'placed' && !base) continue; // generated build quests lose their filter; regenerate
-      this.quests.push({ ...q, filter: base ? base.filter : undefined, done: false, uid: ++this.questCounter });
+      this.quests.push({ ...q, filter: base ? base.filter : undefined, hintTouch: base ? base.hintTouch : undefined, done: false, uid: ++this.questCounter });
     }
     this.refreshQuests();
   }

@@ -1,12 +1,12 @@
 // Buildable item catalog
 export const CATEGORIES = [
-  { key: 'pools', name: 'Pools', icon: '🏊' },
-  { key: 'slides', name: 'Slides', icon: '🌀' },
-  { key: 'food', name: 'Food & Shops', icon: '🍔' },
-  { key: 'facility', name: 'Facilities', icon: '🚻' },
-  { key: 'decor', name: 'Decoration', icon: '🌴' },
-  { key: 'paths', name: 'Paths', icon: '🧱' },
-  { key: 'tools', name: 'Manage', icon: '🔧' },
+  { key: 'pools', name: 'Pools', short: 'Pools', icon: '🏊' },
+  { key: 'slides', name: 'Slides', short: 'Slides', icon: '🌀' },
+  { key: 'food', name: 'Food & Shops', short: 'Food', icon: '🍔' },
+  { key: 'facility', name: 'Facilities', short: 'Facility', icon: '🚻' },
+  { key: 'decor', name: 'Decoration', short: 'Decor', icon: '🌴' },
+  { key: 'paths', name: 'Paths', short: 'Paths', icon: '🧱' },
+  { key: 'tools', name: 'Manage', short: 'Manage', icon: '🔧' },
 ];
 
 // kind: pool | slide | shop | building | prop | path

@@ -58,6 +58,11 @@ function detectQuality() {
 // ------------------------------------------------------------------ boot
 async function boot() {
   G.isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (G.isTouch) {
+    document.body.classList.add('touch');
+    // on phones the minimap lives in the right-hand column under the current goal
+    document.getElementById('hud-tr').appendChild(document.getElementById('minimap'));
+  }
   setLoad(0.02, 'Connecting…');
   await sdk.init();
   sdk.loadingStart();
@@ -146,7 +151,7 @@ async function boot() {
   if (!G.isTouch) $('intro-hint').classList.remove('hidden');
   else { G.audio.init(); }
   setTimeout(() => {
-    if (!loaded) G.hud.toast('🌴 Welcome to <b>Splash Haven</b>! Your waterpark is open — make it legendary.', 'gold');
+    if (!loaded) G.hud.toast(G.isTouch ? '🌴 Welcome to <b>Splash Haven</b>! Joystick to walk, drag the screen to look around.' : '🌴 Welcome to <b>Splash Haven</b>! Your waterpark is open — make it legendary.', 'gold');
     else G.hud.toast(`👋 Welcome back! Day ${G.time.day} at ${G.park.parkName}.`, 'gold');
     if (G.offline) {
       const o = G.offline;
@@ -288,6 +293,8 @@ function wireEvents() {
   bus.on('fireworks', () => hud.toast('🎆 Fireworks show! Guests are cheering.', 'gold'));
   bus.on('underwater', (v) => G.audio.setUnderwater(v));
   bus.on('placed', () => G.hud.renderHotbar());
+  bus.on('buildMode', (on) => document.body.classList.toggle('building', !!on));
+  $('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); G.audio.init(); if (!G.menus.open) G.menus.showPause(); });
 
   // pointer lock flow
   const canvas = $('game');
@@ -327,11 +334,11 @@ function wireEvents() {
 
 // ------------------------------------------------------------------ input actions
 function handleKeys(input) {
-  if (input.hit('KeyB') || input.thit('build')) {
+  if (input.hit('KeyB') || input.thit('catalog')) {
     if (G.menus.open === 'catalog') G.menus.close();
-    else if (!G.menus.open || G.menus.open === 'tablet') { if (G.build.active && !input.thit('build')) G.build.stop(); G.menus.toggleCatalog(); }
+    else if (!G.menus.open || G.menus.open === 'tablet') { if (G.build.active) G.build.stop(); G.menus.toggleCatalog(); }
   }
-  if (input.hit('Tab') || input.thit('tablet')) {
+  if (input.hit('Tab')) {
     if (G.menus.open === 'tablet') G.menus.close();
     else if (!G.menus.open || G.menus.open === 'catalog') G.menus.toggleTablet();
   }
@@ -342,7 +349,6 @@ function handleKeys(input) {
     if (input.hit('Digit2')) G.player.setTool(1);
     if (input.hit('Digit3')) G.player.setTool(2);
     if (input.mouse.wheel) G.player.setTool(G.player.tool + (input.mouse.wheel > 0 ? 1 : -1));
-    if (input.thit('tool')) G.player.setTool(G.player.tool + 1);
   }
   if (input.hit('KeyT')) { G.time.speed = G.time.speed % 3 + 1; G.hud.toast(`⏩ Game speed ${G.time.speed}x`); }
   if (input.hit('KeyF') && G.settings.showFps) {}

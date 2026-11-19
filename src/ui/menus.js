@@ -52,7 +52,7 @@ export class Menus {
   }
   renderCatalog() {
     const lvl = G.progression.level;
-    const tabs = CATEGORIES.map((c) => `<div class="tab ${c.key === this.catTab ? 'active' : ''}" data-cat="${c.key}"><span class="tico">${c.icon}</span><span>${c.name}</span></div>`).join('');
+    const tabs = CATEGORIES.map((c) => `<div class="tab ${c.key === this.catTab ? 'active' : ''}" data-cat="${c.key}"><span class="tico">${c.icon}</span><span class="tn">${c.name}</span><span class="ts">${c.short}</span></div>`).join('');
     const items = Object.values(ITEMS).filter((d) => d.cat === this.catTab);
     const cards = items.map((d) => {
       const locked = d.level > lvl;
@@ -94,11 +94,11 @@ export class Menus {
   }
   renderTablet() {
     const T = [
-      ['overview', '📊', 'Overview'], ['finance', '💰', 'Finances'], ['prices', '🏷️', 'Prices'], ['staff', '👷', 'Staff'],
-      ['guests', '💭', 'Guests'], ['land', '🗺️', 'Land'], ['goals', '🎯', 'Goals'], ['settings', '⚙️', 'Settings'],
+      ['overview', '📊', 'Overview', 'Stats'], ['finance', '💰', 'Finances', 'Money'], ['prices', '🏷️', 'Prices', 'Prices'], ['staff', '👷', 'Staff', 'Staff'],
+      ['guests', '💭', 'Guests', 'Guests'], ['land', '🗺️', 'Land', 'Land'], ['goals', '🎯', 'Goals', 'Goals'], ['settings', '⚙️', 'Settings', 'Settings'],
     ];
-    const tabs = T.map(([k, i, n]) => `<div class="tab ${k === this.tabletTab ? 'active' : ''}" data-tab="${k}"><span class="tico">${i}</span><span>${n}</span></div>`).join('');
-    const el = this._mount(`<div class="window"><div class="win-head"><div class="win-title">📱 ${G.park.parkName} Manager</div><div class="win-cash" id="tab-cash">${fmtMoney(G.park.cash)}</div><button class="btn x gray" id="tab-close">✕</button></div><div class="win-body"><div class="tabs">${tabs}</div><div class="content" id="tab-content"></div></div></div>`);
+    const tabs = T.map(([k, i, n, sh]) => `<div class="tab ${k === this.tabletTab ? 'active' : ''}" data-tab="${k}"><span class="tico">${i}</span><span class="tn">${n}</span><span class="ts">${sh}</span></div>`).join('');
+    const el = this._mount(`<div class="window tablet"><div class="win-head"><div class="win-title">📱 ${G.park.parkName} Manager</div><div class="win-cash" id="tab-cash">${fmtMoney(G.park.cash)}</div><button class="btn x gray" id="tab-close">✕</button></div><div class="win-body"><div class="tabs">${tabs}</div><div class="content" id="tab-content"></div></div></div>`);
     el.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { this.tabletTab = t.dataset.tab; G.audio.play('tick', { vol: 0.4 }); this.renderTablet(); }));
     el.querySelector('#tab-close').addEventListener('click', () => this.close());
     el.addEventListener('click', (e) => { if (e.target === el) this.close(); });
@@ -127,15 +127,15 @@ export class Menus {
             <div class="kpi"><div class="kl">Visitors today</div><div class="kv">${t.guestsIn}</div></div>
           </div>
           <div class="section-title">Rating breakdown</div>
-          <div class="row"><div class="r-main"><div class="r-title">😊 Guest happiness</div>${bar(rp.happy, '#4ce08a')}</div></div>
-          <div class="row"><div class="r-main"><div class="r-title">🧽 Cleanliness</div><div class="r-sub">Litter: ${G.effects.trash.length} · Pools & restrooms condition</div>${bar(rp.clean)}</div></div>
-          <div class="row"><div class="r-main"><div class="r-title">🎢 Attractions</div><div class="r-sub">${park.lists.pools.length} pools · ${park.lists.slides.length} slides · ${park.lists.shops.length} shops</div>${bar(rp.attractions, '#ffd34a')}</div></div>
-          <div class="row"><div class="r-main"><div class="r-title">🌴 Scenery</div><div class="r-sub">Palms, flowers, fountains & decorations</div>${bar(rp.scenery, '#7cffd4')}</div></div>
-          <div class="row"><div class="r-main"><div class="r-title">🛟 Safety & facilities</div><div class="r-sub">Restrooms, lifeguards on towers, first aid, bins</div>${bar(rp.safety, '#ff8a6a')}</div></div>
+          <div class="row rb"><div class="r-main"><div class="r-title">😊 Guest happiness</div>${bar(rp.happy, '#4ce08a')}</div></div>
+          <div class="row rb"><div class="r-main"><div class="r-title">🧽 Cleanliness</div><div class="r-sub">Litter: ${G.effects.trash.length} · Pools & restrooms condition</div>${bar(rp.clean)}</div></div>
+          <div class="row rb"><div class="r-main"><div class="r-title">🎢 Attractions</div><div class="r-sub">${park.lists.pools.length} pools · ${park.lists.slides.length} slides · ${park.lists.shops.length} shops</div>${bar(rp.attractions, '#ffd34a')}</div></div>
+          <div class="row rb"><div class="r-main"><div class="r-title">🌴 Scenery</div><div class="r-sub">Palms, flowers, fountains & decorations</div>${bar(rp.scenery, '#7cffd4')}</div></div>
+          <div class="row rb"><div class="r-main"><div class="r-title">🛟 Safety & facilities</div><div class="r-sub">Restrooms, lifeguards on towers, first aid, bins</div>${bar(rp.safety, '#ff8a6a')}</div></div>
           <div class="section-title">Boosts</div>
           <div class="row"><div class="r-ico">📣</div><div class="r-main"><div class="r-title">Advertising campaign</div><div class="r-sub">+60% visitors for 6 in-game hours ${park.marketing > 0 ? `· <b style="color:#4ce08a">ACTIVE ${Math.ceil(park.marketing / 60)}h left</b>` : ''}</div></div><button class="btn small gold" id="btn-ad" ${park.marketing > 0 ? 'disabled' : ''}>${fmtMoney(this.adCost())}</button></div>
           <div class="row"><div class="r-ico">🎬</div><div class="r-main"><div class="r-title">Sponsor deal</div><div class="r-sub">Watch a short ad to receive ${fmtMoney(this.sponsorValue())}</div></div><button class="btn small green" id="btn-sponsor" ${this.sponsorCD() > 0 ? 'disabled' : ''}>${this.sponsorCD() > 0 ? Math.ceil(this.sponsorCD()) + 's' : '▶ Watch'}</button></div>
-          <div class="row"><div class="r-ico">⏩</div><div class="r-main"><div class="r-title">Game speed</div><div class="r-sub">Press T to cycle</div></div><div class="seg" id="seg-speed">${[1, 2, 3].map((s) => `<button class="${G.time.speed === s ? 'on' : ''}" data-s="${s}">${s}x</button>`).join('')}</div></div>`;
+          <div class="row"><div class="r-ico">⏩</div><div class="r-main"><div class="r-title">Game speed</div><div class="r-sub">${G.isTouch ? 'Faster days, faster money' : 'Press T to cycle'}</div></div><div class="seg" id="seg-speed">${[1, 2, 3].map((s) => `<button class="${G.time.speed === s ? 'on' : ''}" data-s="${s}">${s}x</button>`).join('')}</div></div>`;
         c.querySelector('#btn-ad').addEventListener('click', () => { const cost = this.adCost(); if (park.cash >= cost) { park.spend(cost, 'upkeep'); park.marketing = 360; G.audio.play('cash'); G.hud.toast('📣 Advertising campaign launched!', 'good'); this.renderTabletContent(); } else G.audio.play('error'); });
         c.querySelector('#btn-sponsor').addEventListener('click', () => this.watchSponsor());
         c.querySelectorAll('#seg-speed button').forEach((b) => b.addEventListener('click', () => { G.time.speed = Number(b.dataset.s); this.renderTabletContent(); }));
@@ -206,7 +206,7 @@ export class Menus {
           const can = park.canBuyPlot(k);
           grid += `<div class="plot ${owned ? 'owned' : can ? 'buy' : 'no'} ${j === 3 && (i === 1 || i === 2) ? 'gate' : ''}" data-plot="${k}">${owned ? '✓ Owned' : can ? '🏷️ ' + fmtMoney(park.landPrice()) : '—'}</div>`;
         }
-        c.innerHTML = `<div class="section-title">Expand your park (north is up, entrance at the bottom)</div><div class="landmap">${grid}</div><div class="r-sub" style="margin-top:12px">Each plot is 32×32 m. You can also buy land in-world by walking to a <b>FOR SALE</b> sign.</div>`;
+        c.innerHTML = `<div class="land-wrap wide"><div class="landmap">${grid}</div><div class="land-info"><div class="section-title">Expand your park</div><div class="r-sub">North is up, the entrance is at the bottom. Each plot is 32×32 m and costs <b style="color:#ffd34a">${fmtMoney(park.landPrice())}</b>. Tap a gold plot to buy it, or walk to a <b>FOR SALE</b> sign in the park.</div></div></div>`;
         c.querySelectorAll('.plot.buy').forEach((p) => p.addEventListener('click', () => {
           const k = p.dataset.plot;
           if (park.cash < park.landPrice()) { G.audio.play('error'); G.hud.toast('Not enough cash', 'bad'); return; }
@@ -218,9 +218,9 @@ export class Menus {
         const p = G.progression;
         c.innerHTML = `<div class="kpis"><div class="kpi"><div class="kl">Level</div><div class="kv">${p.level}</div></div><div class="kpi"><div class="kl">XP</div><div class="kv">${p.xp.toLocaleString()}</div></div><div class="kpi"><div class="kl">Goals completed</div><div class="kv green">${p.completedQuests}</div></div></div>
           <div class="section-title">Active goals</div>
-          ${p.quests.filter((q) => !q.done).map((q) => `<div class="row"><div class="r-ico">🎯</div><div class="r-main"><div class="r-title">${q.text}</div><div class="r-sub">${q.hint || ''}</div>${bar(q.progress / q.goal, '#4ce08a')}</div><b style="color:#ffd34a">+${fmtMoney(q.cash)}</b></div>`).join('')}
+          ${p.quests.filter((q) => !q.done).map((q) => `<div class="row"><div class="r-ico">🎯</div><div class="r-main"><div class="r-title">${q.text}</div><div class="r-sub">${(G.isTouch && q.hintTouch) || q.hint || ''}</div>${bar(q.progress / q.goal, '#4ce08a')}</div><b style="color:#ffd34a">+${fmtMoney(q.cash)}</b></div>`).join('')}
           <div class="section-title" style="margin-top:14px">Next unlocks</div>
-          ${Object.values(ITEMS).filter((d) => d.level > p.level && d.level <= p.level + 2).map((d) => `<div class="row"><div class="r-ico">🔒</div><div class="r-main"><div class="r-title">${d.name}</div><div class="r-sub">Level ${d.level} · ${d.desc}</div></div></div>`).join('')}`;
+          ${Object.values(ITEMS).filter((d) => d.level > p.level && d.level <= p.level + 2).slice(0, G.isTouch ? 4 : 99).map((d) => `<div class="row"><div class="r-ico">🔒</div><div class="r-main"><div class="r-title">${d.name}</div><div class="r-sub">Level ${d.level} · ${d.desc}</div></div></div>`).join('')}`;
         break;
       }
       case 'settings': {
@@ -247,16 +247,16 @@ export class Menus {
 
   settingsHTML() {
     const s = G.settings;
-    return `
+    return `<div class="settings-grid wide">
       <div class="settings-row"><span>Graphics quality</span><div class="seg" id="seg-q">${['auto', 'low', 'medium', 'high'].map((q) => `<button class="${s.quality === q ? 'on' : ''}" data-q="${q}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('')}</div></div>
       <div class="settings-row"><span>Master volume</span><input type="range" min="0" max="100" value="${Math.round(s.volume * 100)}" data-set="volume"></div>
       <div class="settings-row"><span>Music</span><input type="range" min="0" max="100" value="${Math.round(s.music * 100)}" data-set="music"></div>
       <div class="settings-row"><span>Sound effects</span><input type="range" min="0" max="100" value="${Math.round(s.sfx * 100)}" data-set="sfx"></div>
-      <div class="settings-row"><span>Mouse sensitivity</span><input type="range" min="20" max="300" value="${Math.round(s.sensitivity * 100)}" data-set="sensitivity"></div>
+      <div class="settings-row"><span>${G.isTouch ? 'Look sensitivity' : 'Mouse sensitivity'}</span><input type="range" min="20" max="300" value="${Math.round(s.sensitivity * 100)}" data-set="sensitivity"></div>
       <div class="settings-row"><span>Field of view</span><input type="range" min="60" max="100" value="${s.fov}" data-set="fov"></div>
-      <div class="settings-row"><span>Invert mouse Y</span><div class="seg" id="seg-inv"><button class="${!s.invertY ? 'on' : ''}" data-v="0">Off</button><button class="${s.invertY ? 'on' : ''}" data-v="1">On</button></div></div>
+      <div class="settings-row"><span>${G.isTouch ? 'Invert look' : 'Invert mouse Y'}</span><div class="seg" id="seg-inv"><button class="${!s.invertY ? 'on' : ''}" data-v="0">Off</button><button class="${s.invertY ? 'on' : ''}" data-v="1">On</button></div></div>
       <div class="settings-row"><span>Show FPS</span><div class="seg" id="seg-fps"><button class="${!s.showFps ? 'on' : ''}" data-v="0">Off</button><button class="${s.showFps ? 'on' : ''}" data-v="1">On</button></div></div>
-      <div class="settings-row"><span style="color:#ff9a9a">Start a new park</span><button class="btn small red" id="btn-reset">Reset progress</button></div>`;
+      <div class="settings-row"><span style="color:#ff9a9a">Start a new park</span><button class="btn small red" id="btn-reset">Reset progress</button></div></div>`;
   }
   bindSettings(c) {
     const s = G.settings;
@@ -271,7 +271,7 @@ export class Menus {
     const reset = c.querySelector('#btn-reset');
     if (reset) reset.addEventListener('click', () => {
       if (reset.dataset.confirm) { G.resetGame(); return; }
-      reset.dataset.confirm = '1'; reset.textContent = 'Click again to confirm';
+      reset.dataset.confirm = '1'; reset.textContent = G.isTouch ? 'Tap again to confirm' : 'Click again to confirm';
     });
   }
 
@@ -281,12 +281,19 @@ export class Menus {
     if (this.open) this.close(false);
     this.open = 'pause';
     G.sdk.gameplayStop();
-    const el = this._mount(`<div class="center-card"><div class="pause-logo">SPLASH HAVEN</div><h2>Paused</h2>
-      <div class="btns"><button class="btn green" id="p-resume">▶ Resume</button><button class="btn" id="p-manage">📱 Manage park</button><button class="btn gray" id="p-settings">⚙️ Settings</button><button class="btn gray" id="p-help">❓ Controls</button></div><div id="p-extra"></div></div>`);
+    const el = this._mount(`<div class="center-card"><div class="pause-logo">SPLASH HAVEN</div><h2 id="p-h2">Paused</h2>
+      <div class="btns" id="p-main"><button class="btn green" id="p-resume">▶ Resume</button><button class="btn" id="p-manage">📱 Manage park</button><button class="btn gray" id="p-settings">⚙️ Settings</button><button class="btn gray" id="p-help">❓ Controls</button></div><div id="p-extra"></div></div>`);
+    const main = el.querySelector('#p-main'), extra = el.querySelector('#p-extra'), h2 = el.querySelector('#p-h2');
+    const sub = (title, html) => {
+      main.style.display = 'none';
+      h2.textContent = title;
+      extra.innerHTML = html + '<div class="btns" style="grid-template-columns:1fr"><button class="btn gray" id="p-back">← Back</button></div>';
+      extra.querySelector('#p-back').addEventListener('click', () => { extra.innerHTML = ''; main.style.display = ''; h2.textContent = 'Paused'; });
+    };
     el.querySelector('#p-resume').addEventListener('click', () => { this.close(true); });
     el.querySelector('#p-manage').addEventListener('click', () => { this.close(false); G.sdk.gameplayStart(); this.toggleTablet('overview'); });
-    el.querySelector('#p-settings').addEventListener('click', () => { const x = el.querySelector('#p-extra'); x.innerHTML = this.settingsHTML(); this.bindSettings(x); });
-    el.querySelector('#p-help').addEventListener('click', () => { el.querySelector('#p-extra').innerHTML = controlsHTML(); });
+    el.querySelector('#p-settings').addEventListener('click', () => { sub('Settings', this.settingsHTML()); this.bindSettings(extra); });
+    el.querySelector('#p-help').addEventListener('click', () => sub('Controls', controlsHTML()));
   }
 
   // ------------------------------------------------------------ day summary
@@ -298,8 +305,8 @@ export class Menus {
     G.sdk.gameplayStop();
     const s = sum.stats;
     const happy = s.happyN ? Math.round(s.happySum / s.happyN) : 0;
-    const el = this._mount(`<div class="center-card"><h1>🌙 Day ${sum.day} complete!</h1><h2>${G.park.parkName} daily report</h2>
-      <table class="sum-table">
+    const el = this._mount(`<div class="center-card sum"><div class="sum-head"><h1>🌙 Day ${sum.day} complete!</h1><h2>${G.park.parkName} daily report</h2></div>
+      <div class="sum-left"><table class="sum-table">
         <tr><td>🎟️ Visitors</td><td>${s.guestsIn}</td></tr>
         <tr><td>😊 Happiness of leaving guests</td><td>${happy}%</td></tr>
         <tr><td>🎢 Slide rides · 🏊 swims</td><td>${s.rides} · ${s.swims}</td></tr>
@@ -307,12 +314,12 @@ export class Menus {
         <tr><td>👷 Wages</td><td class="neg">-${fmtMoney(s.wages)}</td></tr>
         <tr><td>🔧 Upkeep</td><td class="neg">-${fmtMoney(s.upkeep)}</td></tr>
         <tr class="tot"><td>Profit</td><td class="${sum.profit >= 0 ? 'pos' : 'neg'}">${fmtMoney(sum.profit)}</td></tr>
-      </table>
-      ${sum.newRecord ? '<div class="record">🏆 NEW RECORD DAY!</div>' : ''}
+      </table></div>
+      <div class="sum-right">${sum.newRecord ? '<div class="record">🏆 NEW RECORD DAY!</div>' : ''}
       <div class="btns">
         ${sum.profit > 0 ? `<button class="btn gold" id="s-double">🎬 Watch ad: +${fmtMoney(Math.max(250, sum.income * 0.5))} bonus</button>` : ''}
         <button class="btn green" id="s-next">☀️ Start Day ${sum.day + 1}</button>
-      </div></div>`);
+      </div></div></div>`);
     const nextBtn = el.querySelector('#s-next');
     nextBtn.addEventListener('click', async () => {
       nextBtn.disabled = true;
@@ -346,6 +353,17 @@ export class Menus {
 }
 
 export function controlsHTML() {
+  if (G.isTouch) return `<div class="keys-help">
+    <span class="kk">Joystick</span><span>Walk · push fully to run</span>
+    <span class="kk">Drag</span><span>Swipe the screen to look</span>
+    <span class="kk">USE</span><span>Use your tool · hold to skim or repair</span>
+    <span class="kk">ACTION</span><span>Appears for rides, litter, rescues, land</span>
+    <span class="kk">JUMP</span><span>Jump · swim up · climb out</span>
+    <span class="kk">DIVE</span><span>Go underwater while swimming</span>
+    <span class="kk">Tools</span><span>Grabber · Skimmer · Wrench in the bar</span>
+    <span class="kk">BUILD</span><span>Pick an item, then PLACE · Rotate · Done</span>
+    <span class="kk">MANAGE</span><span>Prices, staff, land, goals</span>
+    <span class="kk">❚❚</span><span>Pause & settings</span></div>`;
   return `<div class="keys-help">
     <span class="kk">W A S D</span><span>Move · <b>Shift</b> sprint</span>
     <span class="kk">Mouse</span><span>Look around</span>

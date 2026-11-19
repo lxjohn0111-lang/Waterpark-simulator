@@ -125,19 +125,20 @@ export class Input {
     const zone = document.getElementById('joy-zone');
     const base = document.getElementById('joy-base');
     const knob = document.getElementById('joy-knob');
-    let joyId = null, cx = 0, cy = 0;
+    let joyId = null, cx = 0, cy = 0, max = 46;
     zone.addEventListener('touchstart', (e) => {
       const t = e.changedTouches[0];
       joyId = t.identifier;
       const r = base.getBoundingClientRect();
       cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+      max = Math.max(30, r.width / 2 - 6);
       e.preventDefault();
     }, { passive: false });
     zone.addEventListener('touchmove', (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier !== joyId) continue;
         let dx = t.clientX - cx, dy = t.clientY - cy;
-        const d = Math.hypot(dx, dy), max = 50;
+        const d = Math.hypot(dx, dy);
         if (d > max) { dx = dx / d * max; dy = dy / d * max; }
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         this.touch.move.x = dx / max; this.touch.move.y = -dy / max;
@@ -166,11 +167,13 @@ export class Input {
     const endLook = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     this.canvas.addEventListener('touchend', endLook); this.canvas.addEventListener('touchcancel', endLook);
 
-    for (const btn of document.querySelectorAll('#touch-btns .tb')) {
+    for (const btn of document.querySelectorAll('#touch-btns .tb, #build-btns .bb')) {
       const name = btn.dataset.t;
-      btn.addEventListener('touchstart', (e) => { this.touch.buttons.add(name); this.touch.pressed.add(name); e.preventDefault(); e.stopPropagation(); }, { passive: false });
-      const up = (e) => { this.touch.buttons.delete(name); e.preventDefault(); };
+      btn.addEventListener('touchstart', (e) => { this.touch.buttons.add(name); this.touch.pressed.add(name); btn.classList.add('pressed'); e.preventDefault(); e.stopPropagation(); }, { passive: false });
+      const up = (e) => { this.touch.buttons.delete(name); btn.classList.remove('pressed'); e.preventDefault(); };
       btn.addEventListener('touchend', up); btn.addEventListener('touchcancel', up);
     }
+    // browsers only allow audio after a user gesture: resume it on the first taps
+    window.addEventListener('touchend', () => { if (G.audio) G.audio.init(); }, { passive: true });
   }
 }

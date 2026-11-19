@@ -135,7 +135,7 @@ export class Build {
     if (!this.active) return;
     if (G.ui.blocking) return;
     // exit
-    if (input.mouse.rightPressed || input.hit('KeyQ') || input.thit('build')) {
+    if (input.mouse.rightPressed || input.hit('KeyQ') || input.thit('exit')) {
       if (this.moving) this.cancelMove(); else { this.stop(); return; }
     }
     const park = G.park;
@@ -159,11 +159,11 @@ export class Build {
     this.boxHelper.visible = false;
     // place / move placement
     const def = this.def;
-    if (input.hit('KeyR') || input.mouse.wheel) {
+    if (input.hit('KeyR') || input.mouse.wheel || input.thit('rotate')) {
       this.rot = (this.rot + (input.mouse.wheel < 0 ? 3 : 1)) % 4;
       G.audio.play('tick', { vol: 0.4 });
     }
-    if (input.hit('KeyC') && (def.colorable || def.kind === 'slide') && !this.moving) {
+    if ((input.hit('KeyC') || input.thit('color')) && (def.colorable || def.kind === 'slide') && !this.moving) {
       this.colorIdx++;
       if (def.kind === 'slide') { this.makeGhost(def); }
       G.audio.play('tick', { vol: 0.4 });
