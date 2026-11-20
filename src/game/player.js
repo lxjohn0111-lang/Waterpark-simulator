@@ -238,6 +238,7 @@ export class Player {
     this.updateCamera(dt);
     this.updateViewmodel(dt, hs);
     this.collectNearby(dt);
+    this.bumpGuests(hs);
   }
 
   unstick() {
@@ -439,6 +440,28 @@ export class Player {
     bus.emit('playerRide', r.obj);
   }
 
+  // ---------------------------------------------------------------- bonking
+  bonk(g) {
+    const f = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const vel = f.multiplyScalar(8.5).add(new THREE.Vector3(0, 5.5, 0));
+    if (G.guests.hit(g, vel, 'player')) {
+      this.pickAnim = 0.01;
+      G.hud.shake(0.2);
+    }
+  }
+  bumpGuests(hs) {
+    if (hs < 5.4 || this.inWater || !this.onGround) return;
+    const now = G.time.real;
+    for (const g of G.guests.list) {
+      if (g.ragdoll || g.hidden || (g.bumpT || 0) > now) continue;
+      const dx = g.pos.x - this.pos.x, dz = g.pos.z - this.pos.z;
+      if (dx * dx + dz * dz > 0.8 * 0.8 || Math.abs(g.posY - this.pos.y) > 1.2) continue;
+      g.bumpT = now + 3;
+      const vel = new THREE.Vector3(this.vel.x * 1.15, 3.8, this.vel.z * 1.15);
+      G.guests.hit(g, vel, g.dodger ? 'player' : 'bump');
+    }
+  }
+
   // ---------------------------------------------------------------- pickups
   // Quick successive pickups (litter, coins) build a combo streak
   bumpCombo() {
@@ -509,6 +532,20 @@ export class Player {
       ctx.act = 'Rescue';
       if (eHit) { G.guests.rescue(em.guest, 'player'); }
     }
+    // 1b. fare dodgers within reach: catch them (no precise aim needed, easy on phones)
+    if (!prompt) {
+      let dg = null, dd = 2.8;
+      for (const g of G.guests.list) {
+        if (!g.dodger || g.ragdoll || g.hidden || g.dead) continue;
+        const d = Math.hypot(g.pos.x - this.pos.x, g.pos.z - this.pos.z);
+        if (d < dd) { dd = d; dg = g; }
+      }
+      if (dg) {
+        prompt = key('E') + 'Catch the fare dodger!' + `<span class="sub">${dg.name} owes ${fmtMoney(dg.dodger.owes)} — bonk them!</span>`;
+        ctx.act = 'Catch'; ctx.use = 'Bonk';
+        if (eHit || (lHit && this.tool === 0)) this.bonk(dg);
+      }
+    }
     // 2. rubber ducks
     if (!prompt) {
       for (const d of fx.ducks) {
@@ -544,6 +581,14 @@ export class Player {
           bus.emit('trashPicked');
           prompt = '';
         }
+      }
+    }
+    if (!prompt && this.tool === 0) {
+      const g = G.guests.pick(ray, 3.4);
+      if (g && !g.ragdoll && G.guests.canTumble(g)) {
+        prompt = key('LMB', true) + 'Bonk ' + g.name + `<span class="sub">${T ? 'Funny, but guests hate it' : 'Funny, but guests hate it — they lose happiness'}</span>`;
+        ctx.use = 'Bonk';
+        if (lHit) this.bonk(g);
       }
     }
     if (!prompt && this.tool === 1) {

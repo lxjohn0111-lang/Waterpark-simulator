@@ -516,6 +516,7 @@ function makeIcons() {
   TEX.iconHelp = draw((ctx) => { bubble(ctx, '#ff2a2a'); ctx.fillStyle = '#fff'; ctx.font = '900 80px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 64, 62); });
   TEX.iconWrench = draw((ctx) => { bubble(ctx, '#ff9a1a'); ctx.fillStyle = '#fff'; ctx.font = '900 64px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✖', 64, 60); });
   TEX.iconVip = draw((ctx) => { bubble(ctx, '#b06cff'); ctx.fillStyle = '#ffe36a'; ctx.font = '900 56px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', 64, 60); });
+  TEX.iconThief = draw((ctx) => { bubble(ctx, '#ff7a1a'); ctx.fillStyle = '#fff'; ctx.font = '900 70px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 64, 62); ctx.strokeStyle = '#fff'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(30, 92); ctx.lineTo(98, 26); ctx.stroke(); });
   TEX.iconDirty = draw((ctx) => { bubble(ctx, '#7a9a3a'); ctx.fillStyle = '#fff'; ctx.font = '900 54px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('~', 64, 58); });
   TEX.spark = draw((ctx) => {
     const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);

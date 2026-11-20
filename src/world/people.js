@@ -1,6 +1,7 @@
 // Procedural skinned humans (1 draw call each) with code-driven animation.
 import * as THREE from 'three';
 import { pick, rand } from '../core/utils.js';
+import { MINIS, MiniPerson, randomMiniLook } from './minis.js';
 
 const SKIN = [0xf1c8a8, 0xe8b48f, 0xd29a74, 0xb27752, 0x8d5a3b, 0x6b4128, 0xf6d4bb, 0xc98d66];
 const HAIR = [0x1f140c, 0x3a2414, 0x5b3a1e, 0x8a5a2b, 0xc89a5a, 0xe2c27a, 0x2a2a2a, 0xa13a1a, 0x9a9a9a];
@@ -169,6 +170,7 @@ function getVariant(key, spec) {
 }
 
 export function randomLook(opts = {}) {
+  if (MINIS.ready) return randomMiniLook(opts);
   const kid = opts.kid ?? Math.random() < 0.28;
   const gender = opts.gender || (Math.random() < 0.5 ? 'f' : 'm');
   const hair = gender === 'f' ? pick(['long', 'long', 'pony', 'bun', 'short', 'curly']) : pick(['short', 'short', 'curly', 'bald', 'short']);
@@ -184,6 +186,7 @@ export function randomLook(opts = {}) {
 }
 
 export function createPerson(look) {
+  if (look.base && MINIS.ready) return new MiniPerson(look);
   const key = [look.gender, look.kid ? 'k' : 'a', look.hair, look.suit, look.glasses ? 'g' : '', look.floaties ? 'f' : '', look.cap ? 'c' : ''].join('|');
   const geo = getVariant(key, look);
   const mat = makePersonMaterial(look.colors);
@@ -204,7 +207,8 @@ export function createPerson(look) {
 const T = new Float32Array(BONE_COUNT * 3);
 function setT(b, x, y, z) { T[b * 3] = x; T[b * 3 + 1] = y; T[b * 3 + 2] = z; }
 
-export function animatePerson(p, pose, ph, dt, extra = 0) {
+export function animatePerson(p, pose, ph, dt, extra = 0, speed = 1.25) {
+  if (p.isMini) { p.animate(pose, dt, speed); return; }
   T.fill(0);
   let rootY = 0, rootZ = 0, rootX = 0;
   const s = p.scale;

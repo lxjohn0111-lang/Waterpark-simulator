@@ -14,7 +14,6 @@ export class Staff {
     const def = STAFF[type];
     const look = randomLook({ kid: false, suit: 'shirt', suitColor: def.color, accent: 0x1b2a4a, staff: true });
     look.cap = type === 'lifeguard' || type === 'janitor';
-    look.colors.hair = look.colors.hair;
     const a = new Agent(look);
     a.type = type;
     a.speed = 1.45;
@@ -60,9 +59,21 @@ export class Staff {
     const camPos = G.camera.position;
     for (const s of this.list) {
       s.cd -= sdt;
+      if (s.type === 'security' && (!s.job || s.job.kind === 'patrol')) {
+        // guards keep an eye out while patrolling and drop everything for a fare dodger
+        s.scan = (s.scan || 0) - sdt;
+        if (s.scan <= 0) {
+          s.scan = 0.5;
+          if (G.guests.list.some((g) => g.dodger && g.inPark && !g.ragdoll && !g.hidden && Math.hypot(g.pos.x - s.pos.x, g.pos.z - s.pos.z) < 60)) {
+            if (s.job) this.endJob(s);
+            s.cd = 0;
+          }
+        }
+      }
       if (!s.job && s.cd <= 0 && !s.pathPending) { s.cd = rand(0.6, 1.4); this.findJob(s); }
       if (s.job) this.runJob(s, sdt);
       if (s.path) { s.stepPath(sdt); if (s.pose !== 'run') s.pose = 'walk'; }
+      if (s.pose === 'cheer' && !s.job && s.cd <= 0) s.pose = 'idle';
       s.render(dt, sdt, camPos);
     }
     separate(this.list, sdt);
@@ -104,6 +115,22 @@ export class Staff {
             s.walkTo(edge.x, edge.z, (ok) => { if (!ok) { this.endJob(s); return; } s.job.phase = 'work'; s.job.t = 0; s.pose = 'work'; });
             return;
           }
+        }
+        this.patrol(s);
+        return;
+      }
+      case 'security': {
+        let best = null, bd = 1e9;
+        for (const g of G.guests.list) {
+          if (!g.dodger || !g.inPark || g.ragdoll || g.hidden || g.dead) continue;
+          const d = Math.hypot(g.pos.x - s.pos.x, g.pos.z - s.pos.z);
+          if (d < bd) { bd = d; best = g; }
+        }
+        if (best) {
+          s.job = { kind: 'chase', target: best, t: 0, repath: 0 };
+          s.speed = 3.9;
+          G.audio && G.audio.play('whistle', { pos: s.pos, vol: 0.6 });
+          return;
         }
         this.patrol(s);
         return;
@@ -233,6 +260,28 @@ export class Staff {
       case 'patrol':
         if (j.phase === 'wait' && j.t > rand(2, 6)) this.endJob(s);
         break;
+      case 'chase': {
+        const g = j.target;
+        if (!g || g.dead || !g.dodger || g.ragdoll || g.hidden || j.t > 40) { s.speed = 1.45; this.endJob(s); break; }
+        const dx = g.pos.x - s.pos.x, dz = g.pos.z - s.pos.z, d = Math.hypot(dx, dz);
+        s.pose = 'run';
+        if (d < 1.5) {
+          s.stop();
+          G.guests.hit(g, new THREE.Vector3(dx / d * 7, 4.5, dz / d * 7), 'security');
+          s.speed = 1.45; s.pose = 'cheer'; this.endJob(s); s.cd = 1.6;
+          break;
+        }
+        if (d < 5 && G.park.grid.lineClear(s.pos.x, s.pos.z, g.pos.x, g.pos.z)) {
+          s.stop();
+          const st = Math.min(d, s.speed * sdt);
+          s.pos.x += dx / d * st; s.pos.z += dz / d * st;
+          s.faceTo(g.pos.x, g.pos.z, sdt * 2);
+        } else {
+          j.repath -= sdt;
+          if (j.repath <= 0) { j.repath = 0.7; s.walkTo(g.pos.x, g.pos.z, () => {}); }
+        }
+        break;
+      }
     }
   }
 }

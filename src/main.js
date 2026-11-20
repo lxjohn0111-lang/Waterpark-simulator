@@ -23,6 +23,7 @@ import { HUD } from './ui/hud.js';
 import { Menus, controlsHTML } from './ui/menus.js';
 import { renderThumbnails } from './ui/thumbs.js';
 import { AudioEngine } from './audio.js';
+import { loadMinis } from './world/minis.js';
 import { Input } from './input.js';
 import { OPEN_HOUR, CLOSE_HOUR, DAY_END, NEXT_DAY_START, GAME_MIN_PER_SEC, SAVE_VERSION, WATER_Y } from './config.js';
 import { fmtMoney, pick, rand, chance, clamp } from './core/utils.js';
@@ -85,7 +86,9 @@ async function boot() {
   await generateTextures(renderer, (p, t) => setLoad(0.05 + p * 0.4, t));
   initMaterials();
   initPropMaterials();
-  setLoad(0.48, 'Building the world…'); await tick();
+  setLoad(0.46, 'Inviting guests…');
+  try { await loadMinis((p) => setLoad(0.46 + p * 0.04)); } catch (e) { console.warn('Character models unavailable, using built-in people', e); }
+  setLoad(0.5, 'Building the world…'); await tick();
 
   G.quality = detectQuality();
   G.env = new Environment(scene, renderer);
@@ -345,6 +348,23 @@ function wireEvents() {
   bus.on('duck', (d) => hud.toast(d.gold ? `🦆✨ GOLDEN DUCK! +${fmtMoney(d.value)}` : `🦆 Rubber duck found! +${fmtMoney(d.value)}`, 'gold'));
   bus.on('fireworks', () => hud.toast('🎆 Fireworks show! Guests are cheering.', 'gold'));
   bus.on('underwater', (v) => G.audio.setUnderwater(v));
+  let dodgeToastT = -999, bonkToastT = -999;
+  bus.on('dodger', (d) => {
+    G.audio.play('whistle', { vol: 0.5 });
+    if (G.time.real - dodgeToastT < 12) return;
+    dodgeToastT = G.time.real;
+    const how = G.isTouch ? 'run up and tap CATCH' : 'run up and press E (or bonk them)';
+    hud.toast(d.kind === 'food' ? `🍔 <b>${d.guest.name}</b> ran off from the ${d.obj.def.name} without paying! Catch them — ${how}.` : `🏃 <b>${d.guest.name}</b> jumped the turnstile without paying! Catch them — ${how}.`, 'bad');
+  });
+  bus.on('dodgerCaught', (d) => {
+    if (d.by === 'player') { hud.toast(`💥 Caught! ${d.guest.name} pays a <b>${fmtMoney(d.fine)}</b> fine — grab the coins!`, 'good'); G.audio.play('cash', { vol: 0.7 }); }
+    else hud.toast(`👮 Security caught a fare dodger: +${fmtMoney(d.fine)}`, 'good');
+  });
+  bus.on('guestBonked', (d) => {
+    if (d.source !== 'player' || G.time.real - bonkToastT < 90) return;
+    bonkToastT = G.time.real;
+    hud.toast('😠 Bonking paying guests makes them (and everyone watching) unhappy. Save it for fare dodgers!', 'bad');
+  });
   bus.on('placed', () => G.hud.renderHotbar());
   bus.on('buildMode', (on) => document.body.classList.toggle('building', !!on));
   $('btn-pause').addEventListener('click', (e) => { e.stopPropagation(); G.audio.init(); if (!G.menus.open) G.menus.showPause(); });

@@ -119,17 +119,20 @@ export class Agent {
     // animation LOD
     this.animTick++;
     const every = dist2 > 80 * 80 ? 6 : dist2 > 40 * 40 ? 2 : 1;
-    if (animate && this.animTick % every === 0) animatePerson(this.person, this.pose, this.ph, dt * every, this.poseExtra || 0);
+    if (animate && this.animTick % every === 0) animatePerson(this.person, this.pose, this.ph, dt * every, this.poseExtra || 0, this.pose === 'run' ? Math.max(this.speed, 3.2) : this.speed);
     if (this.icon && this.iconName) {
       this.icon.visible = true;
       this.icon.position.set(this.pos.x, (this.iconY ?? this.posY + 2.15 * this.scale + 0.15), this.pos.z);
+      // shrink when the camera is right next to us so the bubble doesn't hide the character
+      this.icon.scale.setScalar(0.55 * Math.min(1, Math.max(0.3, Math.sqrt(dist2) / 6)));
     }
   }
 
   dispose() {
     this.dead = true;
     G.scene.remove(this.mesh);
-    this.mesh.material.dispose();
+    if (this.person.dispose) this.person.dispose();
+    else this.mesh.material.dispose();
     if (this.icon) G.scene.remove(this.icon);
   }
 }

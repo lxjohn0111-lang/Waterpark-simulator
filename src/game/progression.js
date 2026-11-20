@@ -30,6 +30,7 @@ function questTemplates(level) {
     () => { const n = 30 + L * 12; return { text: `Have ${n} guests in the park at once`, goal: n, ev: 'guestsNow', cash: 300 + L * 100, xp: 80 }; },
     () => { const r = Math.min(5, Math.floor((G.park.rating + 0.6) * 2) / 2); return { text: `Reach a ${r.toFixed(1)}★ rating`, goal: r, ev: 'rating', cash: 300 + L * 100, xp: 80, decimal: true }; },
     () => { const n = 10 + L * 4; return { text: `Guests take ${n} swims`, goal: n, ev: 'swam', cash: 180 + L * 60, xp: 50 }; },
+    () => { const n = 1 + Math.floor(L / 4); return { text: `Catch ${n} fare dodger${n > 1 ? 's' : ''}`, goal: n, ev: 'dodgerCaught', cash: 250 + L * 80, xp: 80, hint: 'They jump the turnstile or run off from shops — bonk them!' }; },
     () => {
       const items = unlocked.filter((d) => ['pools', 'slides', 'food'].includes(d.cat));
       const d = pick(items);
@@ -100,6 +101,7 @@ export class Progression {
     ev('landBought', () => { this.addXP(150); });
     ev('hired', (t) => { this.progress('hired', 1, t); });
     ev('poolCleaned', () => { this.addXP(4); });
+    ev('dodgerCaught', (d) => { this.addXP(d.by === 'player' ? 30 : 10); this.progress('dodgerCaught', 1); });
     ev('cash', (d) => { if (d.delta > 0 && ['tickets', 'food', 'shops', 'tips', 'lockers'].includes(d.cat)) this.progress('earnToday', d.delta); });
   }
 

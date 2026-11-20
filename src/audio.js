@@ -179,6 +179,14 @@ export class AudioEngine {
         o.connect(g); g.connect(out); o.start(t); lfo.start(t); o.stop(t + 0.8); lfo.stop(t + 0.8);
         break;
       }
+      case 'bonk': {
+        this._osc('square', 520, t, 0.002, 0.1 * vol, 0.12, out, 90);
+        this._noise('white', t, 0.002, 0.35 * vol, 0.08, out, 'lowpass', 1600, 300);
+        this._osc('sine', 190, t, 0.003, 0.45 * vol, 0.22, out, 55);
+        const o = this._osc('sine', 650, t + 0.05, 0.01, 0.12 * vol, 0.5, out);
+        o.frequency.setValueAtTime(650, t + 0.05); o.frequency.linearRampToValueAtTime(1350, t + 0.22); o.frequency.linearRampToValueAtTime(480, t + 0.55);
+        break;
+      }
       case 'clank':
         this._osc('square', 420 + Math.random() * 80, t, 0.001, 0.07 * vol, 0.12, out);
         this._osc('sine', 1310 + Math.random() * 200, t, 0.001, 0.08 * vol, 0.25, out);

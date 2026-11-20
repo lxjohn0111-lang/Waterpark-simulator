@@ -81,6 +81,7 @@ export const STAFF = {
   lifeguard: { name: 'Lifeguard', icon: '🛟', wage: 130, level: 2, desc: 'Watches pools from a Lifeguard Tower and rescues swimmers.', color: 0xd83a3a },
   pooltech: { name: 'Pool Technician', icon: '🧪', wage: 110, level: 2, desc: 'Skims and treats pool water.', color: 0x1e7fd8 },
   mechanic: { name: 'Mechanic', icon: '🔧', wage: 150, level: 3, desc: 'Inspects and repairs slides.', color: 0xff8a1a },
+  security: { name: 'Security Guard', icon: '👮', wage: 140, level: 2, desc: 'Chases fare dodgers, bonks them and collects the fine.', color: 0x1b2a6b },
 };
 
 // XP needed to reach level n+1 from level n (cumulative table)

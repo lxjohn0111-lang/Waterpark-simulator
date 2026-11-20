@@ -1,0 +1,4 @@
+Character models: "Mini Characters 1.0" by Kenney (www.kenney.nl)
+License: Creative Commons Zero (CC0 1.0) - free to use in any project, no attribution required.
+Source package: @netforge/asset-library-files (npm), which redistributes the CC0 Kenney packs.
+The files were converted from EXT_meshopt_compression to plain glTF binary; otherwise unchanged.

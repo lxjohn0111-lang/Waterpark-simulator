@@ -36,6 +36,12 @@ const THOUGHTS = {
   rescued: ['Thank you lifeguard!'],
   rain: ['Ugh, rain...'],
   fireworks: ['Wow, fireworks!!'],
+  bonked: ['Ouch! What was that for?!', 'Hey! Watch it!', 'Did the owner just bonk me?!', 'My head is spinning...'],
+  sawBonk: ['The owner is bonking guests!', 'Yikes, did you see that?'],
+  busted: ['Okay, okay, I\'ll pay!', 'Busted...', 'Worth a try...'],
+  runAway: ['Can\'t catch me!', 'Free entry, haha!', 'Run!!'],
+  dineDash: ['Free burger, see ya!', 'Who needs to pay?'],
+  wheee: ['WHEEEE!', 'I can fly!!'],
 };
 
 let nextGuestId = 1;
@@ -102,6 +108,7 @@ export class Guests {
   }
 
   despawn(g) {
+    if (g.ragdoll) { g.person.endRagdoll(); g.ragdoll = null; }
     this.clearTask(g);
     g.dispose();
     const i = this.list.indexOf(g);
@@ -118,7 +125,7 @@ export class Guests {
     if (f) { f.count++; f.t = G.time.total; f.text = text; }
     else { this.thoughtFeed.push({ key, text, kind, count: 1, t: G.time.total }); if (this.thoughtFeed.length > 24) this.thoughtFeed.shift(); }
   }
-  addHappy(g, v) { g.happiness = clamp(g.happiness + v, 0, 100); }
+  addHappy(g, v) { if (Number.isFinite(v)) g.happiness = clamp(g.happiness + v, 0, 100); }
   // An unmet need: think about it (and lose a little happiness) at most every 45 game minutes
   unmet(g, key) {
     g.unmetT = g.unmetT || {};
@@ -345,6 +352,16 @@ export class Guests {
         g.walkTo(rand(-30, 30), 97, () => this.despawn(g), () => this.despawn(g));
         return;
       }
+      // some guests jump the turnstile instead of paying (more of them when the ticket feels pricey)
+      const dodgeP = (price > will * 0.85 ? 0.14 : 0.05) * (G.time.day === 1 && G.time.minutes < OPEN_HOUR + 40 ? 0 : 1);
+      if (!g.vip && !g.kid && price > 0 && chance(dodgeP)) {
+        park.today.guestsIn++; park.records.totalGuests++;
+        g.inPark = true; g.enteredAt = G.time.total;
+        this.makeDodger(g, Math.round(price), 'ticket');
+        t.phase = 'enter'; g.pose = 'run'; g.speed = 3.2;
+        g.walkDirect([[clamp(g.pos.x, -1.8, 1.8), GATE_Z + 1.5], [rand(-3, 3), GATE_IN.z - 3]], () => { g.speed = 1.3; this.clearTask(g); });
+        return;
+      }
       const paid = Math.min(g.cash + 40, Math.round(price));
       park.earn(paid, 'tickets', true, new THREE.Vector3(g.pos.x, 2.2, g.pos.z));
       park.today.guestsIn++;
@@ -460,7 +477,14 @@ export class Guests {
       const sh = o.def.shop;
       const price = Math.round(sh.price * park.foodMult * (g.vip ? 1.5 : 1));
       const fair = sh.price * 1.35;
-      if (g.cash >= price && !(price > fair * 1.6 && chance(0.7))) {
+      if (!g.dodger && !g.vip && !g.kid && chance(0.035)) {
+        // dine & dash: grabs the food and runs without paying
+        if (sh.needs) for (const [k, v] of Object.entries(sh.needs)) g.needs[k] = clamp(g.needs[k] + v, 0, 1);
+        if (sh.type !== 'souvenir') { g.carrying = sh.type; g.eatT = 0; g.litter = 1; }
+        this.makeDodger(g, price, 'food', o);
+        this.think(g, 'dineDash', 'bad');
+        g.fleeing = true; g.fleeT = 3; g.fleeFrom = { x: o.cx, z: o.cz };
+      } else if (g.cash >= price && !(price > fair * 1.6 && chance(0.7))) {
         g.cash -= price; g.spent += price;
         park.earn(price, sh.type === 'souvenir' ? 'shops' : 'food', true, new THREE.Vector3(o.points.service.x, 2.4, o.points.service.z));
         park.today.sales++;
@@ -569,7 +593,7 @@ export class Guests {
       if (k >= 1) {
         o.pool.swimmers.delete(g);
         const q = o.quality;
-        if (q > 75) { this.addHappy(g, 6 + o.def.fun * 6); if (chance(0.25)) this.think(g, 'poolClean', 'good'); }
+        if (q > 75) { this.addHappy(g, 6 + (o.def.fun ?? 0.5) * 6); if (chance(0.25)) this.think(g, 'poolClean', 'good'); }
         else if (q < 45) { this.addHappy(g, -4); this.think(g, 'poolDirty', 'bad'); }
         else this.addHappy(g, 3);
         g.visited.add(o.id);
@@ -730,6 +754,14 @@ export class Guests {
         g.visited.add(o.id);
         bus.emit('ride', { guest: g, obj: o });
         if (o.condition <= 0) { o.condition = 0; o.broken = true; bus.emit('broken', o); }
+        // fast slides sometimes launch riders head over heels into the pool
+        const vEnd = tl.frames[tl.frames.length - 1].v;
+        if (g.person.isMini && chance(0.18 + Math.min(0.3, vEnd * 0.025))) {
+          o.pool.swimmers.delete(g);
+          this.tumble(g, exitDir.clone().multiplyScalar(Math.min(9, vEnd * 0.8)).add(new THREE.Vector3(0, 3.5, 0)), rand(-5, 5));
+          if (chance(0.5)) this.think(g, 'wheee', 'good');
+          return;
+        }
       }
     } else if (t.phase === 'swimOut') {
       const tgt = S.exitWater;
@@ -770,6 +802,147 @@ export class Guests {
     g.litter = 0;
     if (!G.park.grid.isWalkable(g.pos.x, g.pos.z)) return;
     G.effects.addTrash(g.pos.x + rand(-0.3, 0.3), g.pos.z + rand(-0.3, 0.3));
+  }
+
+  // ------------------------------------------------------------ ragdolls, bonking & fare dodgers
+  makeDodger(g, owes, kind, obj) {
+    g.dodger = { owes: Math.max(5, owes), kind, t: G.time.real };
+    g.setIcon('iconThief');
+    if (chance(0.6)) this.think(g, 'runAway', 'bad');
+    bus.emit('dodger', { guest: g, kind, obj });
+  }
+
+  // Can this guest be knocked over right now?
+  canTumble(g) {
+    if (g.dead || g.hidden || g.ragdoll || !g.person.isMini || !g.inPark && !(g.task && g.task.type === 'arrive')) return false;
+    const t = g.task;
+    if (t && t.type === 'slide' && (t.phase === 'climb' || t.phase === 'ride')) return false;
+    if (t && t.type === 'service' && t.phase === 'use' && t.kind === 'toilet') return false;
+    return true;
+  }
+
+  // Start a ragdoll without any judgement (slides, bumps...)
+  tumble(g, vel, spin = 0) {
+    if (g.ragdoll) { g.ragdoll.kick(vel); return; }
+    const task = g.task;
+    if (task && task.obj && task.obj.pool) task.obj.pool.swimmers.delete(g);
+    if (task) { const keep = task.obj; this.clearTask(g); g.lastObj = keep; }
+    g.stop();
+    g.fleeing = false;
+    g.customOrient = true;
+    g.noSep = true;
+    g.ragdoll = g.person.startRagdoll(vel, spin);
+  }
+
+  // The owner (or security) bonks a guest
+  hit(g, vel, source = 'player') {
+    if (!this.canTumble(g)) return false;
+    const wasDodger = !!g.dodger;
+    this.tumble(g, vel, rand(-7, 7));
+    const head = new THREE.Vector3(g.pos.x, g.posY + 1.6 * g.scale, g.pos.z);
+    G.audio && G.audio.play('bonk', { pos: head, vol: 1 });
+    G.effects.sparkle(head.x, head.y, head.z, 0xfff27a, 16);
+    G.hud && G.hud.floater(pick(['BONK!', 'POW!', 'WHACK!', 'BOINK!', 'KAPOW!']), head, 'red');
+    if (wasDodger) this.catchDodger(g, source);
+    else if (source === 'player' || source === 'bump') {
+      this.addHappy(g, source === 'bump' ? -10 : -28);
+      this.think(g, 'bonked', 'bad');
+      g.bonks = (g.bonks || 0) + 1;
+      if (source === 'player') for (const o of this.list) {
+        if (o === g || o.dead || o.sawBonkT > G.time.real - 30) continue;
+        if (Math.hypot(o.pos.x - g.pos.x, o.pos.z - g.pos.z) < 9) { o.sawBonkT = G.time.real; this.addHappy(o, -4); if (chance(0.4)) this.think(o, 'sawBonk', 'bad'); }
+      }
+      bus.emit('guestBonked', { guest: g, source });
+    }
+    return true;
+  }
+
+  catchDodger(g, source) {
+    const d = g.dodger;
+    if (!d) return;
+    const fine = Math.max(30, Math.round(d.owes * 3));
+    g.dodger = null;
+    g.caught = true;
+    g.setIcon(null);
+    const pos = new THREE.Vector3(g.pos.x, 1.6, g.pos.z);
+    if (source === 'player') {
+      // the fine bursts out as coins for the owner to grab
+      const n = Math.max(3, Math.min(10, Math.round(fine / 12)));
+      for (let i = 0; i < n; i++) G.effects.addCoin(g.pos.x + rand(-1.3, 1.3), 1.2 + Math.random(), g.pos.z + rand(-1.3, 1.3), Math.round(fine / n));
+    } else G.park.earn(fine, 'bonus', true, pos);
+    G.park.today.dodgersCaught = (G.park.today.dodgersCaught || 0) + 1;
+    this.think(g, 'busted', 'bad');
+    bus.emit('dodgerCaught', { guest: g, fine, by: source });
+  }
+
+  updateRagdoll(g, dt) {
+    g.ragdoll.step(dt);
+    if (g.icon && g.iconName) { g.ragdoll.headPos(g.icon.position); g.icon.position.y += 0.7; g.icon.visible = true; }
+    g.pos.x = g.ragdoll.x[0].x; g.pos.z = g.ragdoll.x[0].z;
+    if (!g.ragdoll.done()) return;
+    const s = g.person.endRagdoll();
+    g.ragdoll = null;
+    g.customOrient = false;
+    g.noSep = false;
+    g.pos.set(s.pos.x, 0, s.pos.z);
+    g.yaw = s.yaw;
+    g.posY = 0;
+    const pa = G.park.poolAt(g.pos.x, g.pos.z);
+    if (pa) {
+      // still in a pool: swim to the edge and climb out
+      const o = pa.obj;
+      o.pool.swimmers.add(g);
+      g.task = { type: 'pool', obj: o, phase: 'swim', t: 0, dur: 3, target: null, dtMin: 0, pause: 0 };
+      g.posY = this.swimY(g, o, g.pos.x, g.pos.z).y;
+    } else {
+      const grid = G.park.grid;
+      if (!grid.isWalkable(g.pos.x, g.pos.z)) {
+        const [ix, iz] = grid.cellOf(g.pos.x, g.pos.z);
+        const c = grid.nearestWalkable(ix, iz, 10);
+        if (c) { const [x, z] = grid.centerOf(c[0], c[1]); g.pos.set(x, 0, z); }
+      }
+      g.pose = 'angry';
+      g.decideCD = 1.6;
+    }
+    if (g.caught) { g.caught = false; g.decideCD = 0; this.setTask(g, { type: 'leave' }); }
+  }
+
+  // Nearest owner/security guard chasing this dodger (or null)
+  chaser(g) {
+    let best = null, bd = 9;
+    const P = G.player;
+    if (P && !P.ride && !P.inWater) { const d = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z); if (d < bd) { bd = d; best = { x: P.pos.x, z: P.pos.z, d }; } }
+    for (const s of G.staff.list) if (s.type === 'security') { const d = Math.hypot(s.pos.x - g.pos.x, s.pos.z - g.pos.z); if (d < bd) { bd = d; best = { x: s.pos.x, z: s.pos.z, d }; } }
+    return best;
+  }
+
+  fleeStep(g, sdt) {
+    if (g.hidden || g.customOrient) return false;
+    const t = g.task;
+    const busy = t && ((t.type === 'pool' && t.phase !== 'walk' && t.phase !== 'start') || (t.type === 'slide' && t.phase !== 'walk' && t.phase !== 'queue') || t.type === 'drown');
+    if (busy) return false;
+    const ch = this.chaser(g);
+    if (ch) {
+      if (!g.fleeing) { this.clearTask(g); g.fleeing = true; if (chance(0.5)) this.think(g, 'runAway', 'bad'); }
+      g.fleeT = 2.5; g.fleeFrom = ch;
+    }
+    if (!g.fleeing) return false;
+    g.fleeT -= sdt;
+    if (g.fleeT <= 0) { g.fleeing = false; g.pose = 'idle'; g.decideCD = 0.5; return false; }
+    const from = g.fleeFrom || { x: g.pos.x, z: g.pos.z + 1 };
+    let ax = g.pos.x - from.x, az = g.pos.z - from.z;
+    const l = Math.hypot(ax, az) || 1; ax /= l; az /= l;
+    const grid = G.park.grid, sp = 3.3 * sdt;
+    for (const ang of [0, 0.5, -0.5, 1.1, -1.1, 1.7, -1.7, 2.4, -2.4, Math.PI]) {
+      const c = Math.cos(ang), s = Math.sin(ang);
+      const dx = ax * c - az * s, dz = ax * s + az * c;
+      const nx = g.pos.x + dx * sp, nz = g.pos.z + dz * sp;
+      const k = grid.idxAt(nx, nz);
+      if (k >= 0 && grid.land[k] === 1 && !grid.block[k]) { g.pos.x = nx; g.pos.z = nz; g.faceTo(nx + dx, nz + dz, sdt * 2); break; }
+    }
+    g.pose = 'run';
+    g.speed = 3.3;
+    return true;
   }
 
   // ------------------------------------------------------------ update
@@ -813,6 +986,7 @@ export class Guests {
     for (let i = 0; i < n; i++) {
       const g = this.list[i];
       if (!g || g.dead) continue;
+      if (g.ragdoll) { this.updateRagdoll(g, dt); continue; }
       // needs (game minutes)
       if (g.inPark) {
         const N = g.needs, w = G.env ? G.env.weatherInfo.thirst : 1;
@@ -862,13 +1036,15 @@ export class Guests {
           else if (g.iconName === 'iconAngry') g.setIcon(null);
         }
       }
+      // fare dodgers run from the owner and security
+      if (g.dodger && g.inPark && this.fleeStep(g, sdt)) { g.render(dt, sdt, camPos); continue; }
       // task logic
       if (g.task) {
         g.task.dtMin = dtMin;
         this.runTask(g, sdt);
       } else if (g.inPark) {
         g.decideCD -= sdt;
-        if (g.pose === 'cheer' && g.decideCD > 0) {/* keep cheering */}
+        if ((g.pose === 'cheer' || g.pose === 'angry') && g.decideCD > 0) {/* keep emoting */}
         else g.pose = 'idle';
         if (g.decideCD <= 0 && !g.pathPending) { g.decideCD = rand(0.4, 1.2); this.decide(g); }
       }
@@ -887,7 +1063,8 @@ export class Guests {
     for (const g of this.list) {
       if (g.hidden) continue;
       c.set(g.pos.x, g.posY + 1.1 * g.scale, g.pos.z);
-      if (g.customOrient) c.copy(g.mesh.position);
+      if (g.ragdoll) g.ragdoll.headPos(c);
+      else if (g.customOrient) c.copy(g.mesh.position);
       const d = ray.origin.distanceTo(c);
       if (d > bd) continue;
       if (ray.distanceSqToPoint(c) < 0.38 * 0.38) { bd = d; best = g; }

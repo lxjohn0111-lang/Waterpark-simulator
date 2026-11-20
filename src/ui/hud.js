@@ -229,6 +229,8 @@ export class HUD {
     const al = $('alerts');
     const list = [];
     for (const em of G.guests.emergencies) list.push(`<div class="alert">🆘 Swimmer in trouble at ${em.obj.def.kind === 'slide' ? em.obj.def.name + ' pool' : em.obj.def.name}! ${Math.max(0, Math.ceil(em.timeout - em.t))}s</div>`);
+    const dodgers = G.guests.list.filter((g) => g.dodger && g.inPark && !g.dead);
+    if (dodgers.length) list.push(`<div class="alert warn">🏃 ${dodgers.length === 1 ? 'A fare dodger is' : dodgers.length + ' fare dodgers are'} on the loose — catch them!</div>`);
     const broken = G.park.lists.slides.filter((o) => o.broken);
     if (broken.length) list.push(`<div class="alert warn">🔧 ${broken.map((o) => o.def.name).join(', ')} broken</div>`);
     const html = list.join('');
@@ -236,6 +238,7 @@ export class HUD {
     // direction arrows for emergencies
     const ca = $('compass-arrows');
     const targets = G.guests.emergencies.filter((e) => !e.handledBy).map((e) => ({ x: e.guest.pos.x, y: 0.5, z: e.guest.pos.z, label: 'HELP!' }));
+    for (const g of dodgers) targets.push({ x: g.pos.x, y: 1, z: g.pos.z, label: '$ ' + g.name, near: 6 });
     let ahtml = '';
     const cam = G.camera, [w, h] = G.viewSize();
     for (const t of targets) {
@@ -246,7 +249,9 @@ export class HUD {
       const behind = v.z > 1;
       if (behind) { x = -x; y = -y; }
       const onScreen = !behind && Math.abs(x) < 0.9 && Math.abs(y) < 0.85;
-      if (!onScreen) { const m = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.85); x /= m; y /= m; }
+      if (onScreen && t.near && d < t.near) continue; // right in front of us: the prompt says it all
+      if (onScreen) y = Math.max(y, -0.45); // stay clear of the hotbar / touch buttons
+      if (!onScreen) { const m = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.85); x /= m; y /= m; y = Math.max(y, -0.3); }
       const ang = Math.atan2(x, y);
       const sx = (x * 0.5 + 0.5) * w, sy = (-y * 0.5 + 0.5) * h;
       ahtml += `<div class="cmp-arrow" style="left:${sx}px;top:${sy}px"><div class="tri" style="transform:rotate(${onScreen ? 180 : ang * 180 / Math.PI}deg)"></div><div class="lbl">${t.label} ${Math.round(d)}m</div></div>`;
@@ -299,7 +304,10 @@ export class HUD {
     // guests & staff
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     for (const g of G.guests.list) ctx.fillRect(tx(g.pos.x) - 0.8, tz(g.pos.z) - 0.8, 1.6, 1.6);
-    for (const s of G.staff.list) { ctx.fillStyle = '#' + (({ janitor: 0x3adf7a, lifeguard: 0xff4a4a, pooltech: 0x3a9aff, mechanic: 0xffa02a })[s.type]).toString(16); ctx.fillRect(tx(s.pos.x) - 1.3, tz(s.pos.z) - 1.3, 2.6, 2.6); }
+    for (const s of G.staff.list) { ctx.fillStyle = '#' + (({ janitor: 0x3adf7a, lifeguard: 0xff4a4a, pooltech: 0x3a9aff, mechanic: 0xffa02a, security: 0x8fa8ff })[s.type]).toString(16); ctx.fillRect(tx(s.pos.x) - 1.3, tz(s.pos.z) - 1.3, 2.6, 2.6); }
+    // fare dodgers
+    ctx.fillStyle = '#ff8a1a';
+    for (const g of G.guests.list) if (g.dodger && g.inPark) { ctx.beginPath(); ctx.arc(tx(g.pos.x), tz(g.pos.z), 3, 0, 6.3); ctx.fill(); }
     // emergencies
     const pulse = 3 + Math.sin(G.time.real * 8) * 1.5;
     for (const em of G.guests.emergencies) { ctx.strokeStyle = '#ff2a2a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx(em.guest.pos.x), tz(em.guest.pos.z), pulse + 2, 0, 6.3); ctx.stroke(); }
