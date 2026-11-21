@@ -19,6 +19,7 @@ import { Player } from './game/player.js';
 import { Build } from './game/build.js';
 import { Progression } from './game/progression.js';
 import { buildStarterPark, seedStarterExtras } from './game/starter.js';
+import { Tutorial } from './game/tutorial.js';
 import { HUD } from './ui/hud.js';
 import { Menus, controlsHTML } from './ui/menus.js';
 import { renderThumbnails } from './ui/thumbs.js';
@@ -61,7 +62,8 @@ async function boot() {
   G.isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (G.isTouch) {
     document.body.classList.add('touch');
-    // on phones the minimap lives in the right-hand column under the current goal
+    // on phones the right-hand column holds the info card and the minimap (the goal card is top centre)
+    document.getElementById('hud-tr').appendChild(document.getElementById('infocard'));
     document.getElementById('hud-tr').appendChild(document.getElementById('minimap'));
   }
   setLoad(0.02, 'Connecting…');
@@ -108,6 +110,7 @@ async function boot() {
   G.progression = new Progression();
   G.hud = new HUD();
   G.menus = new Menus();
+  G.tutorial = new Tutorial(scene);
   G.pipeline = new Pipeline(renderer, scene, camera, vmScene);
   G.pipeline.build(G.quality);
 
@@ -120,6 +123,7 @@ async function boot() {
   setLoad(0.62, 'Loading your park…'); await tick();
   const loaded = loadGame();
   if (!loaded) newGame();
+  G.tutorial.render(true);
   G.terrain.rebuildFence(G.park.owned);
   G.terrain.rebuildSaleSigns(G.park.owned, () => G.park.landPrice());
   G.staff.sync();
@@ -156,8 +160,7 @@ async function boot() {
   if (!G.isTouch) $('intro-hint').classList.remove('hidden');
   else { G.audio.init(); }
   setTimeout(() => {
-    if (!loaded) G.hud.toast(G.isTouch ? '🌴 Welcome to <b>Splash Haven</b>! Joystick to walk, drag the screen to look around.' : '🌴 Welcome to <b>Splash Haven</b>! Your waterpark is open — make it legendary.', 'gold');
-    else G.hud.toast(`👋 Welcome back! Day ${G.time.day} at ${G.park.parkName}.`, 'gold');
+    if (loaded && !G.tutorial.active) G.hud.toast(`👋 Welcome back! Day ${G.time.day} at ${G.park.parkName}.`, 'gold');
     if (G.offline) {
       const o = G.offline;
       G.park.earn(o.earned, 'bonus', false);
@@ -181,6 +184,7 @@ function newGame() {
   for (let i = 0; i < 4; i++) G.guests.spawn(false);
   G.player.teleport(0, 59.5, -0.2);
   G.player.pitch = 0.04;
+  G.tutorial.begin(0);
   G.progression.refreshQuests();
   G.env.setWeather('sunny', true);
 }
@@ -240,7 +244,7 @@ G.applyLift = () => document.body.style.setProperty('--lift', (G.settings.lift |
 function saveGame() {
   try {
     const data = {
-      v: SAVE_VERSION, park: G.park.serialize(), prog: G.progression.serialize(),
+      v: SAVE_VERSION, park: G.park.serialize(), prog: G.progression.serialize(), tut: G.tutorial.serialize(),
       time: { day: G.time.day, minutes: Math.min(G.time.minutes, CLOSE_HOUR - 1), total: G.time.total },
       player: { x: G.player.pos.x, z: G.player.pos.z, yaw: G.player.yaw }, weather: G.env.weather,
       thoughts: G.guests.thoughtFeed.slice(-12),
@@ -259,6 +263,7 @@ function loadGame() {
     G.time.day = d.time.day; G.time.minutes = clamp(d.time.minutes, OPEN_HOUR, CLOSE_HOUR - 1); G.time.total = d.time.total || 0;
     G.park.restore(d.park);
     G.progression.restore(d.prog);
+    G.tutorial.restore(d.tut, G.progression.level);
     G.env.setWeather(d.weather || 'sunny', true);
     G.guests.thoughtFeed = d.thoughts || [];
     let px = d.player ? d.player.x : 0, pz = d.player ? d.player.z : 59.5;
@@ -351,6 +356,7 @@ function wireEvents() {
   let dodgeToastT = -999, bonkToastT = -999;
   bus.on('dodger', (d) => {
     G.audio.play('whistle', { vol: 0.5 });
+    if (d.quiet) return; // the tutorial explains this one itself
     if (G.time.real - dodgeToastT < 12) return;
     dodgeToastT = G.time.real;
     const how = G.isTouch ? 'run up and tap CATCH' : 'run up and press E (or bonk them)';
@@ -415,7 +421,7 @@ function handleKeys(input) {
     if (G.menus.open === 'tablet') G.menus.close();
     else if (!G.menus.open || G.menus.open === 'catalog') G.menus.toggleTablet();
   }
-  if (input.hit('Escape') && (G.menus.open === 'catalog' || G.menus.open === 'tablet')) G.menus.close();
+  if (input.hit('Escape') && (G.menus.open === 'catalog' || G.menus.open === 'tablet' || G.menus.open === 'hire')) G.menus.close();
   if (G.menus.open) return;
   if (!G.build.active) {
     if (input.hit('Digit1')) G.player.setTool(0);
@@ -532,6 +538,7 @@ function frame(dt, doRender) {
     G.staff.update(dt, sdt);
     G.park.tick(dMin, dt);
     G.progression.update();
+    G.tutorial.update(dt);
     // wave pool cycle: 50s waves, 25s calm
     const cyc = G.time.real % 75;
     WaterU.uWaveAmp.value += ((cyc < 50 ? 1 : 0) - WaterU.uWaveAmp.value) * Math.min(1, dt * 0.5);

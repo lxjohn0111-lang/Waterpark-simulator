@@ -23,6 +23,7 @@ export class Menus {
     G.ui.blocking = false;
     if (relock && !G.isTouch) G.input.lock();
     if (was === 'pause' || was === 'summary') G.sdk.gameplayStart();
+    if (was === 'hire' && this.hireDone) { const cb = this.hireDone; this.hireDone = null; cb(); }
     G.hud.setCrosshairVisible(true);
     return was;
   }
@@ -52,14 +53,15 @@ export class Menus {
   }
   renderCatalog() {
     const lvl = G.progression.level;
-    const tabs = CATEGORIES.map((c) => `<div class="tab ${c.key === this.catTab ? 'active' : ''}" data-cat="${c.key}"><span class="tico">${c.icon}</span><span class="tn">${c.name}</span><span class="ts">${c.short}</span></div>`).join('');
+    const tg = (kind, key) => (G.tutorial && G.tutorial.glows(kind, key) ? 'tut-glow' : '');
+    const tabs = CATEGORIES.map((c) => `<div class="tab ${c.key === this.catTab ? 'active' : ''} ${c.key !== this.catTab ? tg('tab', c.key) : ''}" data-cat="${c.key}"><span class="tico">${c.icon}</span><span class="tn">${c.name}</span><span class="ts">${c.short}</span></div>`).join('');
     const items = Object.values(ITEMS).filter((d) => d.cat === this.catTab);
     const cards = items.map((d) => {
       const locked = d.level > lvl;
       const afford = G.park.cash >= d.cost;
       const isNew = !locked && !G.progression.seenUnlocks.has(d.key);
       const thumb = G.thumbs && G.thumbs[d.key] ? `<img class="thumb" src="${G.thumbs[d.key]}">` : `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:42px">${d.kind === 'tool' ? (d.tool === 'sell' ? '🔨' : '✋') : '🏗️'}</div>`;
-      return `<div class="card ${locked ? 'locked' : ''}" data-key="${d.key}">${thumb}${locked ? `<div class="lock">🔒 Level ${d.level}</div>` : ''}${isNew ? '<div class="new">NEW</div>' : ''}<div class="c-body"><div class="c-name">${d.name}</div><div class="c-desc">${d.desc}</div><div class="c-foot"><span class="c-price ${afford || d.cost === 0 ? '' : 'bad'}" data-cost="${d.cost}">${d.cost ? fmtMoney(d.cost) : 'Free'}</span>${d.size ? `<span class="c-tag">${d.size[0]}×${d.size[1]}</span>` : d.kind === 'pool' || d.kind === 'slide' ? `<span class="c-tag">${G.park.dimsFor(d).join('×')}</span>` : ''}</div></div></div>`;
+      return `<div class="card ${locked ? 'locked' : ''} ${tg('card', d.key)}" data-key="${d.key}">${thumb}${locked ? `<div class="lock">🔒 Level ${d.level}</div>` : ''}${isNew ? '<div class="new">NEW</div>' : ''}<div class="c-body"><div class="c-name">${d.name}</div><div class="c-desc">${d.desc}</div><div class="c-foot"><span class="c-price ${afford || d.cost === 0 ? '' : 'bad'}" data-cost="${d.cost}">${d.cost ? fmtMoney(d.cost) : 'Free'}</span>${d.size ? `<span class="c-tag">${d.size[0]}×${d.size[1]}</span>` : d.kind === 'pool' || d.kind === 'slide' ? `<span class="c-tag">${G.park.dimsFor(d).join('×')}</span>` : ''}</div></div></div>`;
     }).join('');
     const el = this._mount(`<div class="window"><div class="win-head"><div class="win-title">🏗️ Build</div><div class="win-cash" id="cat-cash">${fmtMoney(G.park.cash)}</div><button class="btn x gray" id="cat-close">✕</button></div><div class="win-body"><div class="tabs">${tabs}</div><div class="content"><div class="grid">${cards}</div></div></div></div>`);
     el.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { this.catTab = t.dataset.cat; G.audio.play('tick', { vol: 0.4 }); this.renderCatalog(); }));
@@ -217,10 +219,13 @@ export class Menus {
       case 'goals': {
         const p = G.progression;
         c.innerHTML = `<div class="kpis"><div class="kpi"><div class="kl">Level</div><div class="kv">${p.level}</div></div><div class="kpi"><div class="kl">XP</div><div class="kv">${p.xp.toLocaleString()}</div></div><div class="kpi"><div class="kl">Goals completed</div><div class="kv green">${p.completedQuests}</div></div></div>
-          <div class="section-title">Active goals</div>
+          <div class="row"><div class="r-ico">🎓</div><div class="r-main"><div class="r-title">Tutorial</div><div class="r-sub">${G.tutorial && G.tutorial.active ? 'In progress: follow the yellow arrows.' : 'Learn the basics again, step by step.'}</div></div>${G.tutorial && G.tutorial.active ? '<button class="btn small gray" id="btn-tut-skip">Skip</button>' : '<button class="btn small" id="btn-tut">▶ Replay</button>'}</div>
+          <div class="section-title">Current goal</div>
           ${p.quests.filter((q) => !q.done).map((q) => `<div class="row"><div class="r-ico">🎯</div><div class="r-main"><div class="r-title">${q.text}</div><div class="r-sub">${(G.isTouch && q.hintTouch) || q.hint || ''}</div>${bar(q.progress / q.goal, '#4ce08a')}</div><b style="color:#ffd34a">+${fmtMoney(q.cash)}</b></div>`).join('')}
           <div class="section-title" style="margin-top:14px">Next unlocks</div>
           ${Object.values(ITEMS).filter((d) => d.level > p.level && d.level <= p.level + 2).slice(0, G.isTouch ? 4 : 99).map((d) => `<div class="row"><div class="r-ico">🔒</div><div class="r-main"><div class="r-title">${d.name}</div><div class="r-sub">Level ${d.level} · ${d.desc}</div></div></div>`).join('')}`;
+        { const b1 = c.querySelector('#btn-tut'); if (b1) b1.addEventListener('click', () => { this.close(true); G.tutorial.restart(); }); }
+        { const b2 = c.querySelector('#btn-tut-skip'); if (b2) b2.addEventListener('click', () => { G.tutorial.skip(); this.renderTabletContent(); }); }
         break;
       }
       case 'settings': {
@@ -284,7 +289,8 @@ export class Menus {
     this.open = 'pause';
     G.sdk.gameplayStop();
     const el = this._mount(`<div class="center-card"><div class="pause-logo">SPLASH HAVEN</div><h2 id="p-h2">Paused</h2>
-      <div class="btns" id="p-main"><button class="btn green" id="p-resume">▶ Resume</button><button class="btn" id="p-manage">📱 Manage park</button><button class="btn gray" id="p-settings">⚙️ Settings</button><button class="btn gray" id="p-help">❓ Controls</button></div><div id="p-extra"></div></div>`);
+      <div class="btns" id="p-main"><button class="btn green" id="p-resume">▶ Resume</button><button class="btn" id="p-manage">📱 Manage park</button><button class="btn gray" id="p-settings">⚙️ Settings</button><button class="btn gray" id="p-help">❓ Controls</button>${G.tutorial && G.tutorial.active ? '<button class="btn gray" id="p-skiptut">⏭ Skip tutorial</button>' : ''}</div><div id="p-extra"></div></div>`);
+    { const sk = el.querySelector('#p-skiptut'); if (sk) sk.addEventListener('click', () => { G.tutorial.skip(); sk.remove(); }); }
     const main = el.querySelector('#p-main'), extra = el.querySelector('#p-extra'), h2 = el.querySelector('#p-h2');
     const sub = (title, html) => {
       main.style.display = 'none';
@@ -297,6 +303,40 @@ export class Menus {
     el.querySelector('#p-settings').addEventListener('click', () => { sub('Settings', this.settingsHTML()); this.bindSettings(extra); });
     el.querySelector('#p-help').addEventListener('click', () => sub('Controls', controlsHTML()));
   }
+
+  // ------------------------------------------------------------ hire staff (end of the tutorial)
+  showHire(onDone) {
+    if (this.open) this.close(false);
+    if (G.build.active) G.build.stop();
+    this.open = 'hire';
+    G.input.unlock();
+    this.hireDone = onDone;
+    const park = G.park;
+    const el = this._mount(`<div class="center-card hire"><h1>🎉 Your park is up and running!</h1><h2>Hire staff so it runs itself</h2>
+      <div class="hire-list" id="hire-list"></div>
+      <div class="hire-foot"><span class="r-sub" id="hire-wages"></span><button class="btn green" id="hire-go">▶ Let's go!</button></div></div>`);
+    const list = el.querySelector('#hire-list');
+    const draw = () => {
+      const lvl = G.progression.level;
+      list.innerHTML = Object.entries(STAFF).sort((a, b) => a[1].level - b[1].level).map(([k, st]) => {
+        const locked = st.level > lvl, n = park.staff[k] || 0;
+        const note = k === 'lifeguard' && !(park.lists.fac.lifeguard || []).length ? ' Needs a Lifeguard Tower next to a pool.' : '';
+        return `<div class="hire-row ${locked ? 'locked' : ''} ${n ? 'has' : ''}"><div class="hire-ico">${st.icon}</div><div class="hire-main"><div class="hire-name">${st.name}</div><div class="hire-desc">${st.desc}${note}</div></div>
+          <div class="hire-side">${locked ? `<span class="hire-lock">🔒 Level ${st.level}</span>` : `<span class="hire-wage">${fmtMoney(st.wage)}/day</span><div class="hire-ctl"><button class="btn small gray" data-fire="${k}" ${n ? '' : 'disabled'}>−</button><b class="count">${n}</b><button class="btn small green" data-hire="${k}">+ Hire</button></div>`}</div></div>`;
+      }).join('');
+      const wages = Object.entries(park.staff).reduce((a, [k, n]) => a + (STAFF[k] ? STAFF[k].wage * n : 0), 0);
+      el.querySelector('#hire-wages').textContent = `Wages: ${fmtMoney(wages)} per day, paid at closing time.`;
+      list.querySelectorAll('[data-hire]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.hire;
+        if ((park.staff[k] || 0) >= 12) return;
+        park.staff[k] = (park.staff[k] || 0) + 1; G.staff.sync(); G.audio.play('cash', { vol: 0.6 }); bus.emit('hired', k); draw();
+      }));
+      list.querySelectorAll('[data-fire]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.fire; park.staff[k] = Math.max(0, (park.staff[k] || 0) - 1); G.staff.sync(); G.audio.play('tick'); draw(); }));
+    };
+    draw();
+    el.querySelector('#hire-go').addEventListener('click', () => this.closeHire());
+  }
+  closeHire() { this.close(true); }
 
   // ------------------------------------------------------------ day summary
   showSummary(sum) {

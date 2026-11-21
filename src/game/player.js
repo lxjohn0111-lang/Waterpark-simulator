@@ -122,7 +122,8 @@ export class Player {
   update(dt, input) {
     const s = G.settings;
     const sens = 0.0021 * s.sensitivity;
-    let dx = input.mouse.dx + input.touch.look.dx * 0.5, dy = input.mouse.dy + input.touch.look.dy * 0.5;
+    // touch look is a bit livelier by default (the slider still scales it)
+    let dx = input.mouse.dx + input.touch.look.dx * 0.7, dy = input.mouse.dy + input.touch.look.dy * 0.7;
     if (s.invertY) dy = -dy;
     const canLook = input.locked || G.isTouch;
     if (canLook && !G.ui.blocking) {

@@ -153,17 +153,12 @@ export class HUD {
     $('xp-text').textContent = `${a.toLocaleString()} / ${b.toLocaleString()} XP`;
   }
 
+  // The tutorial / current-goal card at the top (see tutorial.js)
   renderQuests() {
-    const p = G.progression;
-    if (!p) return;
-    const html = p.quests.map((q) => {
-      const pr = q.decimal ? q.progress.toFixed(1) + ' / ' + q.goal.toFixed(1) : (q.goal > 200 ? fmtMoney(q.progress) + ' / ' + fmtMoney(q.goal) : Math.floor(q.progress) + ' / ' + q.goal);
-      return `<div class="quest ${q.done ? 'done' : ''} ${q.tut ? 'tut' : ''}"><div class="q-title"><span>${q.done ? '✅ ' : ''}${q.text}</span><span class="q-rew">+${fmtMoney(q.cash)}</span></div>${(G.isTouch ? q.hintTouch || q.hint : q.hint) && !q.done ? `<div class="q-hint">${G.isTouch ? q.hintTouch || q.hint : q.hint}</div>` : ''}<div class="q-bar"><div style="width:${Math.round(clamp(q.progress / q.goal, 0, 1) * 100)}%"></div></div><div class="q-hint" style="text-align:right">${pr}</div></div>`;
-    }).join('');
-    if (html !== this.lastQuestHtml) { $('quests').innerHTML = html; this.lastQuestHtml = html; }
-    if (G.isTouch && !this.questTap) {
-      this.questTap = true;
-      $('quests').addEventListener('click', (e) => { e.stopPropagation(); if (!G.menus.open) G.menus.toggleTablet('goals'); });
+    if (G.tutorial) G.tutorial.render(true);
+    if (G.isTouch && !this.goalTap) {
+      this.goalTap = true;
+      $('tut').addEventListener('click', (e) => { e.stopPropagation(); if (!G.menus.open && G.tutorial && !G.tutorial.active) G.menus.toggleTablet('goals'); });
     }
   }
 
@@ -229,7 +224,8 @@ export class HUD {
     const al = $('alerts');
     const list = [];
     for (const em of G.guests.emergencies) list.push(`<div class="alert">🆘 Swimmer in trouble at ${em.obj.def.kind === 'slide' ? em.obj.def.name + ' pool' : em.obj.def.name}! ${Math.max(0, Math.ceil(em.timeout - em.t))}s</div>`);
-    const dodgers = G.guests.list.filter((g) => g.dodger && g.inPark && !g.dead);
+    // (the tutorial's own cheater is pointed out by the tutorial card and arrow)
+    const dodgers = G.guests.list.filter((g) => g.dodger && g.inPark && !g.dead && !g.tutorial);
     if (dodgers.length) list.push(`<div class="alert warn">🏃 ${dodgers.length === 1 ? 'A fare dodger is' : dodgers.length + ' fare dodgers are'} on the loose — catch them!</div>`);
     const broken = G.park.lists.slides.filter((o) => o.broken);
     if (broken.length) list.push(`<div class="alert warn">🔧 ${broken.map((o) => o.def.name).join(', ')} broken</div>`);
@@ -239,6 +235,9 @@ export class HUD {
     const ca = $('compass-arrows');
     const targets = G.guests.emergencies.filter((e) => !e.handledBy).map((e) => ({ x: e.guest.pos.x, y: 0.5, z: e.guest.pos.z, label: 'HELP!' }));
     for (const g of dodgers) targets.push({ x: g.pos.x, y: 1, z: g.pos.z, label: '$ ' + g.name, near: 6 });
+    // tutorial / goal waypoint: an edge arrow when it is off screen, a distance tag when it is far
+    const mk = G.tutorial && G.tutorial.markerPos;
+    if (mk && mk.d > 4) targets.unshift({ x: mk.x, y: mk.y + 0.9, z: mk.z, label: '', near: 0, cls: 'tut', tag: true });
     let ahtml = '';
     const cam = G.camera, [w, h] = G.viewSize();
     for (const t of targets) {
@@ -250,11 +249,16 @@ export class HUD {
       if (behind) { x = -x; y = -y; }
       const onScreen = !behind && Math.abs(x) < 0.9 && Math.abs(y) < 0.85;
       if (onScreen && t.near && d < t.near) continue; // right in front of us: the prompt says it all
+      if (t.tag && onScreen) {
+        const sx = (x * 0.5 + 0.5) * w, sy = (-Math.max(y, -0.45) * 0.5 + 0.5) * h;
+        ahtml += `<div class="cmp-tag" style="left:${sx}px;top:${sy}px">${Math.round(d)} m</div>`;
+        continue;
+      }
       if (onScreen) y = Math.max(y, -0.45); // stay clear of the hotbar / touch buttons
       if (!onScreen) { const m = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.85); x /= m; y /= m; y = Math.max(y, -0.3); }
       const ang = Math.atan2(x, y);
       const sx = (x * 0.5 + 0.5) * w, sy = (-y * 0.5 + 0.5) * h;
-      ahtml += `<div class="cmp-arrow" style="left:${sx}px;top:${sy}px"><div class="tri" style="transform:rotate(${onScreen ? 180 : ang * 180 / Math.PI}deg)"></div><div class="lbl">${t.label} ${Math.round(d)}m</div></div>`;
+      ahtml += `<div class="cmp-arrow ${t.cls || ''}" style="left:${sx}px;top:${sy}px"><div class="tri" style="transform:rotate(${onScreen ? 180 : ang * 180 / Math.PI}deg)"></div><div class="lbl">${t.label ? t.label + ' ' : ''}${Math.round(d)}m</div></div>`;
     }
     if (ca.innerHTML !== ahtml) ca.innerHTML = ahtml;
   }

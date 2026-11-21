@@ -353,7 +353,7 @@ export class Guests {
         return;
       }
       // some guests jump the turnstile instead of paying (more of them when the ticket feels pricey)
-      const dodgeP = (price > will * 0.85 ? 0.14 : 0.05) * (G.time.day === 1 && G.time.minutes < OPEN_HOUR + 40 ? 0 : 1);
+      const dodgeP = (price > will * 0.85 ? 0.14 : 0.05) * ((G.time.day === 1 && G.time.minutes < OPEN_HOUR + 40) || (G.tutorial && G.tutorial.active) ? 0 : 1);
       if (!g.vip && !g.kid && price > 0 && chance(dodgeP)) {
         park.today.guestsIn++; park.records.totalGuests++;
         g.inPark = true; g.enteredAt = G.time.total;
@@ -477,7 +477,7 @@ export class Guests {
       const sh = o.def.shop;
       const price = Math.round(sh.price * park.foodMult * (g.vip ? 1.5 : 1));
       const fair = sh.price * 1.35;
-      if (!g.dodger && !g.vip && !g.kid && chance(0.035)) {
+      if (!g.dodger && !g.vip && !g.kid && !(G.tutorial && G.tutorial.active) && chance(0.035)) {
         // dine & dash: grabs the food and runs without paying
         if (sh.needs) for (const [k, v] of Object.entries(sh.needs)) g.needs[k] = clamp(g.needs[k] + v, 0, 1);
         if (sh.type !== 'souvenir') { g.carrying = sh.type; g.eatT = 0; g.litter = 1; }
@@ -567,7 +567,7 @@ export class Guests {
       g.needs.fun = Math.min(1, g.needs.fun + 0.01 * t.dtMin);
       g.needs.energy = Math.max(0, g.needs.energy - (o.pool.jacuzzi ? 0 : 0.002) * t.dtMin);
       // drowning risk in deep water
-      if (sy.deep && sy.floor < -1.3 && !o.pool.jacuzzi && Math.random() < 0.00012 * t.dtMin * (g.kid ? 2.2 : 1) && G.time.minutes > OPEN_HOUR + 30) {
+      if (sy.deep && sy.floor < -1.3 && !o.pool.jacuzzi && Math.random() < 0.00012 * t.dtMin * (g.kid ? 2.2 : 1) && G.time.minutes > OPEN_HOUR + 30 && !(G.tutorial && G.tutorial.active)) {
         return this.startDrowning(g, o);
       }
       if (G.player && Math.random() < 0.02 * sdt) G.effects.splash(g.pos.x, WATER_Y, g.pos.z, 0.25);
@@ -805,11 +805,11 @@ export class Guests {
   }
 
   // ------------------------------------------------------------ ragdolls, bonking & fare dodgers
-  makeDodger(g, owes, kind, obj) {
+  makeDodger(g, owes, kind, obj, quiet = false) {
     g.dodger = { owes: Math.max(5, owes), kind, t: G.time.real };
     g.setIcon('iconThief');
     if (chance(0.6)) this.think(g, 'runAway', 'bad');
-    bus.emit('dodger', { guest: g, kind, obj });
+    bus.emit('dodger', { guest: g, kind, obj, quiet });
   }
 
   // Can this guest be knocked over right now?
@@ -932,7 +932,10 @@ export class Guests {
     const from = g.fleeFrom || { x: g.pos.x, z: g.pos.z + 1 };
     let ax = g.pos.x - from.x, az = g.pos.z - from.z;
     const l = Math.hypot(ax, az) || 1; ax /= l; az /= l;
-    const grid = G.park.grid, sp = 3.3 * sdt;
+    // the tutorial's cheater is easy to catch and runs out of breath after a few seconds
+    if (g.tutorial) g.fleeTotal = (g.fleeTotal || 0) + sdt;
+    const fleeSpeed = g.tutorial ? (g.fleeTotal > 5 ? 1.4 : 2.6) : 3.3;
+    const grid = G.park.grid, sp = fleeSpeed * sdt;
     for (const ang of [0, 0.5, -0.5, 1.1, -1.1, 1.7, -1.7, 2.4, -2.4, Math.PI]) {
       const c = Math.cos(ang), s = Math.sin(ang);
       const dx = ax * c - az * s, dz = ax * s + az * c;
@@ -941,7 +944,7 @@ export class Guests {
       if (k >= 0 && grid.land[k] === 1 && !grid.block[k]) { g.pos.x = nx; g.pos.z = nz; g.faceTo(nx + dx, nz + dz, sdt * 2); break; }
     }
     g.pose = 'run';
-    g.speed = 3.3;
+    g.speed = fleeSpeed;
     return true;
   }
 
